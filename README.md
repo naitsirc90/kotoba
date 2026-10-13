@@ -2,7 +2,7 @@
 
 **Kotoba** è un'app gratuita per studiare il vocabolario giapponese e i sillabari, con esercizi personalizzati, ripasso dilazionato e progressi salvati sul dispositivo.
 
-**[Apri Kotoba Web](https://naitsirc90.github.io/kotoba/)**
+**Accesso:** Kotoba Web è disponibile tramite link diretto condiviso con le persone invitate.
 
 Kotoba è una **Progressive Web App (PWA)**: può essere utilizzata dal browser e aggiunta alla schermata Home di smartphone e tablet. Dopo il primo caricamento completo, i contenuti dell'app possono essere utilizzati anche offline.
 
@@ -20,13 +20,13 @@ Kotoba è una **Progressive Web App (PWA)**: può essere utilizzata dal browser 
 
 ### Android
 
-1. Apri [Kotoba Web](https://naitsirc90.github.io/kotoba/) in Chrome.
+1. Apri il link diretto di Kotoba Web in Chrome.
 2. Apri il menu del browser e scegli **Installa app** o **Aggiungi a schermata Home**, secondo il dispositivo.
 3. Avvia Kotoba dall'icona aggiunta.
 
 ### iPhone e iPad
 
-1. Apri [Kotoba Web](https://naitsirc90.github.io/kotoba/) in Safari.
+1. Apri il link diretto di Kotoba Web in Safari.
 2. Tocca **Condividi** e scegli **Aggiungi alla schermata Home**.
 3. Apri Kotoba dalla nuova icona.
 
