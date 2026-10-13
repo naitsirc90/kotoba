@@ -1,7 +1,7 @@
 (() => {
 const EMBEDDED_VOCABULARY = window.__KOTOBA_VOCABULARY__;
 const embeddedVocabularyById = new Map((EMBEDDED_VOCABULARY.entries || []).map(v => [v.id, v]));
-const KOTOBA_RELEASE = '3.1.9-cross-platform';
+const KOTOBA_RELEASE = '3.1.10-cross-platform';
 // Immutable, locally embedded priority index. This index does not change
 // SRS deadlines, selected topics, Study Level gates or saved progress.
 const KOTOBA_LEARNING_PRIORITY_SCORES = window.__KOTOBA_LEARNING_PRIORITY__?.scores || {};
@@ -2126,6 +2126,7 @@ function shell(content, active = view) {
   if (['home', 'topics', 'progress', 'kana', 'settings'].includes(active)) {
     mainViewContentCache.set(active, content);
   }
+  document.body.classList.toggle('kotoba-exercise-viewport', active === 'session');
   root.innerHTML = `<div class="app-shell"><main class="screen">${content}</main>${nav(active)}${renderResetDialog()}</div>`;
   bindCommon();
 }
@@ -3948,6 +3949,7 @@ function finishKanaExercise(){
   kanaState.lastResult=result;kanaRuntime=null;kanaState.activeSession=null;saveKanaState();view='kana-complete';render();
 }
 function renderKanaExercise(){
+  document.body.classList.add('kotoba-exercise-viewport');
   if(!kanaRuntime){view='kana';return renderKana()}const q=currentKanaQuestion();if(!q)return finishKanaExercise();const f=kanaRuntime.feedback;const prompt=q.direction==='kana-romaji'?'Scrivi o scegli il romaji':'Scegli il kana corretto';const main=q.direction==='kana-romaji'?q.kana:q.romaji;
   const answerArea=q.mode==='multiple'?`<div class="options">${q.options.map(opt=>{const isCorrect=(q.direction==='kana-romaji'?opt===q.romaji:opt===q.kana),isChosen=f&&opt===f.answer;const cls=f?(isCorrect?'correct-reveal':(isChosen&&!f.correct?'wrong-reveal':'')):'';return `<button class="option kana-option ${cls}" data-kana-answer="${escapeHtml(opt)}" ${f?'disabled':''}>${escapeHtml(opt)}</button>`}).join('')}</div>`:`<form data-kana-form><input class="answer-input" data-kana-input autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="text" placeholder="Scrivi il romaji" ${f?'disabled':''}><button class="btn primary wide" type="submit" ${f?'disabled':''}>Conferma</button></form>`;
   const note=f&&!f.correct?`<div class="kana-answer-note">Risposta corretta: ${escapeHtml(q.direction==='kana-romaji'?q.romaji:q.kana)}</div>`:'<div class="kana-answer-note"></div>';
@@ -3971,6 +3973,7 @@ document.addEventListener('visibilitychange',()=>{if(view!=='kana-exercise'||!ka
 
 
 function render() {
+  document.body.classList.toggle('kotoba-exercise-viewport', view === 'session' || view === 'kana-exercise');
   if (!vocabulary.length) return;
   switch (view) {
     case 'onboarding': return renderOnboarding();

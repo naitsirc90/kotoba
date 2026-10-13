@@ -1,4 +1,4 @@
-/* Kotoba 3.1.9 - HTTPS PWA boot, no runtime AI or external server calls. */
+/* Kotoba 3.1.10 - HTTPS PWA boot, no runtime AI or external server calls. */
 (() => {
   const status=(message)=>{
     const app=document.querySelector('#app');

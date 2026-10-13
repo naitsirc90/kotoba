@@ -352,3 +352,124 @@ fieldset { border: 0; padding: 0; margin: 0 0 22px; }
 .transfer-counts span{font-size:12px;text-align:center;background:white;border-radius:10px;padding:9px 5px;}
 .transfer-counts strong{display:block;font-size:21px;color:var(--text);margin:5px 0;}
 .transfer-warning{border-left:3px solid #a16e1d;}
+
+/* Kotoba 3.1.10: exercise-only viewport. Main navigation remains scrollable.
+   Standard questions fit into the visible area; genuinely long content and
+   large-text/onscreen-keyboard cases can scroll INSIDE the card, never clip. */
+body.kotoba-exercise-viewport {
+  height: 100vh;
+  height: 100dvh;
+  padding: 0 !important;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body.kotoba-exercise-viewport #app {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+body.kotoba-exercise-viewport .app-shell {
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  touch-action: auto;
+}
+body.kotoba-exercise-viewport .screen {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: clamp(12px, 2.5dvh, 24px);
+  padding-right: calc(16px + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(16px + env(safe-area-inset-left, 0px));
+}
+body.kotoba-exercise-viewport .session-header {
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+body.kotoba-exercise-viewport .study-card {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  justify-content: safe center;
+  padding: clamp(14px, 2.8dvh, 26px) clamp(14px, 4vw, 22px);
+}
+body.kotoba-exercise-viewport .question-prompt {
+  margin-bottom: clamp(10px, 2.5dvh, 20px);
+}
+body.kotoba-exercise-viewport .question-term {
+  margin-bottom: clamp(12px, 3dvh, 25px);
+}
+body.kotoba-exercise-viewport .jp-question { margin-bottom: 7px; }
+body.kotoba-exercise-viewport .question-reading {
+  margin-bottom: clamp(12px, 2.4dvh, 20px);
+}
+body.kotoba-exercise-viewport .options { gap: 8px; margin-bottom: 10px; }
+body.kotoba-exercise-viewport .option {
+  min-height: clamp(44px, 6.7dvh, 56px);
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+body.kotoba-exercise-viewport .question-card > .btn,
+body.kotoba-exercise-viewport .question-card form .btn {
+  min-height: clamp(44px, 6.5dvh, 52px);
+}
+body.kotoba-exercise-viewport .kana-session-header { flex: 0 0 auto; margin-bottom: 10px; }
+body.kotoba-exercise-viewport .kana-progress { flex: 0 0 auto; margin-bottom: 10px; }
+body.kotoba-exercise-viewport .kana-question-card { min-height: 0; }
+body.kotoba-exercise-viewport .kana-question-label { margin-bottom: clamp(8px, 1.8dvh, 15px); }
+body.kotoba-exercise-viewport .kana-question-main { margin: 6px 0 clamp(10px, 2.6dvh, 22px); }
+body.kotoba-exercise-viewport .kana-answer-note { min-height: 20px; margin-bottom: 0; }
+@media (max-height: 660px) {
+  body.kotoba-exercise-viewport .screen { padding-top: 10px; padding-bottom: calc(9px + env(safe-area-inset-bottom, 0px)); }
+  body.kotoba-exercise-viewport .study-card { padding-top: 12px; padding-bottom: 12px; }
+  body.kotoba-exercise-viewport .session-header { margin-bottom: 8px; }
+  body.kotoba-exercise-viewport .question-prompt { margin-bottom: 9px; }
+  body.kotoba-exercise-viewport .question-term { margin-bottom: 10px; font-size: clamp(29px, 9vw, 43px); }
+  body.kotoba-exercise-viewport .jp-question { margin-bottom: 4px; }
+  body.kotoba-exercise-viewport .question-reading { margin-bottom: 10px; font-size: 18px; }
+  body.kotoba-exercise-viewport .option { min-height: 43px; padding-top: 7px; padding-bottom: 7px; font-size: 15px; }
+  body.kotoba-exercise-viewport .options { gap: 6px; margin-bottom: 8px; }
+  body.kotoba-exercise-viewport .question-card > .btn,
+  body.kotoba-exercise-viewport .question-card form .btn { min-height: 43px; }
+  body.kotoba-exercise-viewport .question-card [data-action="dont-know"] { margin-top: 7px; }
+  body.kotoba-exercise-viewport .kana-question-main { font-size: clamp(52px, 18vw, 84px); margin-bottom: 10px; }
+  body.kotoba-exercise-viewport .kana-question-label { margin-bottom: 8px; }
+  body.kotoba-exercise-viewport .kana-progress { margin-bottom: 8px; }
+}
+
+/* Compact the learning card on short screens without shrinking standard UI. */
+@media (max-height: 760px) {
+  body.kotoba-exercise-viewport .learn-card .jp-hero { font-size: clamp(48px, 15vw, 72px); margin: 9px 0 6px; }
+  body.kotoba-exercise-viewport .learn-card .kana { font-size: 18px; margin: 3px 0 9px; }
+  body.kotoba-exercise-viewport .learn-card .meaning { font-size: 19px; line-height: 1.32; }
+  body.kotoba-exercise-viewport .learn-meta-row { margin: 7px 0 3px; gap: 6px; }
+  body.kotoba-exercise-viewport .kotoba-example { margin: 8px 0; padding: 9px 11px; }
+  body.kotoba-exercise-viewport .kotoba-example-jp { font-size: 1rem; line-height: 1.45; }
+  body.kotoba-exercise-viewport .kotoba-example-it { font-size: .91rem; line-height: 1.38; }
+  body.kotoba-exercise-viewport .learn-actions { margin-top: 12px; gap: 7px; }
+  body.kotoba-exercise-viewport .learn-actions .btn { min-height: 44px; }
+  body.kotoba-exercise-viewport .learn-actions .exclude-word-btn { min-height: 42px; }
+  body.kotoba-exercise-viewport .sense-box { margin: 8px 0 3px; padding: 9px 11px; }
+  body.kotoba-exercise-viewport .register-note-box { margin: 6px 0 3px; padding: 8px 10px; }
+  body.kotoba-exercise-viewport .feedback-card .kana { margin: 3px 0 12px; }
+}
+@media (max-height: 600px) {
+  body.kotoba-exercise-viewport .learn-card .jp-hero { font-size: clamp(42px, 14vw, 60px); margin: 7px 0 3px; }
+  body.kotoba-exercise-viewport .learn-card .kana { margin: 2px 0 7px; }
+  body.kotoba-exercise-viewport .learn-actions { margin-top: 8px; gap: 5px; }
+  body.kotoba-exercise-viewport .kotoba-example { margin: 5px 0; padding: 7px 9px; }
+}
+
