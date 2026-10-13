@@ -1,0 +1,14 @@
+Kotoba Offline - JLPT level metadata attribution
+
+N5/N4 classification data is derived from Jonathan Waller's JLPT vocabulary data,
+redistributed in structured form by stephenmk/yomitan-jlpt-vocab and compatible
+projects such as OpenJLPT.
+
+Jonathan Waller data: CC BY 4.0.
+stephenmk/yomitan-jlpt-vocab redistribution: CC BY-SA 4.0.
+
+The JLPT does not publish an official fixed vocabulary list for the current test.
+Level labels in Kotoba are therefore indicative study metadata, not official JLPT
+content specifications.
+
+FreeDict Italian-Japanese remains the source of Italian-Japanese lexical entries.

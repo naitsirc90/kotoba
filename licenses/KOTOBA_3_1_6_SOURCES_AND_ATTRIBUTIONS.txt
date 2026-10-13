@@ -1,0 +1,21 @@
+Kotoba Offline 3.1.6 — Fonti e licenze, 12 ottobre 2026
+
+Dati lessicali:
+- EDRDG / JMdict (© EDRDG / James W. Breen), CC BY-SA 4.0.
+  https://www.edrdg.org/edrdg/licence.html
+  https://creativecommons.org/licenses/by-sa/4.0/
+- FreeDict ita-jpn, release 2025.11.23, CC BY-SA 3.0.
+  https://freedict.org/
+  https://creativecommons.org/licenses/by-sa/3.0/
+- Wiktionary giapponese e italiano, CC BY-SA 4.0, consultati a livello editoriale.
+  https://ja.wiktionary.org/ — https://it.wiktionary.org/
+- Japanese WordNet (NICT); licenza originale in JAPANESE_WORDNET_NICT_LICENSE.txt.
+- MultiWordNet italiano, CC BY 3.0; licenza e citazione in MULTIWORDNET_IT_CC_BY_3.0.txt.
+- Jonathan Waller / stephenmk/yomitan-jlpt-vocab: dati didattici indicativi,
+  con condizioni nel file JLPT_DATA.txt.
+
+Le nuove traduzioni ed esempi bilingui Kotoba P01–P03 sono riformulati editorialmente.
+Nessun testo definitorio esteso di Treccani o Wiktionary è copiato nelle schede.
+Credits consultabili offline anche da Impostazioni > Dati > Fonti e licenze.
+App interamente offline, nessun permesso INTERNET. Aggiornare periodicamente i dati
+JMdict nelle successive versioni del progetto secondo il contratto di utilizzo.

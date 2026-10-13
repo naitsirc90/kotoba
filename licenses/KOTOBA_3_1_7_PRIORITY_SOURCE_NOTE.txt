@@ -1,0 +1,13 @@
+Kotoba Offline 3.1.7 - Didactic word selection priority
+
+The ordering uses the frozen JMdict priority tags (nf / news / ichi / spec / gai)
+and the sense-specific teaching signals already reviewed within Kotoba.
+These tags are approximate relative-usage proxies, not official or contemporary
+frequency counts. Words lacking frequency data are treated neutrally.
+The index is included offline and never transmitted. No runtime AI is used.
+All original JMdict and Kotoba 3.1.6 lexical attributions remain valid.
+Source: EDRDG JMdict and the existing app corpus.
+https://www.edrdg.org/edrdg/licence.html
+
+This file is a development candidate until signed with the ORIGINAL historical
+Kotoba key. It MUST NOT be treated as an installable update over 3.1.6.

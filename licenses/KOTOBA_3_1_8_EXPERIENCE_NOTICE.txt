@@ -1,0 +1,11 @@
+Kotoba Offline 3.1.8 - Studio libero e pianificazione sessioni
+
+This offline-only experience update keeps all 37,646 lexical entries and
+17,836 study-enabled senses from 3.1.7. The changes affect study planning,
+settings layout, optional new-word cap, early stop, and local session logging.
+All existing dictionary and learning-priority licenses and attributions apply.
+No runtime AI, no internet connection or network permissions.
+
+This development APK has no historical release signature. It cannot replace
+any previous installation while preserving its local progress. It must
+be signed using the ORIGINAL Kotoba signing key and tested on Android.

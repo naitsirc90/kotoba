@@ -1,0 +1,39 @@
+Kotoba Offline 2.7.6 - additional lexical data attribution
+
+Kotoba Offline remains fully offline. The resources below are used only during build-time lexical QA and/or are incorporated as derived metadata. No runtime network access is required.
+
+BASE CORPUS
+FreeDict Italian-Japanese (ita-jpn), release 2025.11.23.
+Corpus licence: Creative Commons Attribution-ShareAlike 3.0 Unported.
+
+JAPANESE LEXICAL VERIFICATION
+JMdict: Electronic Dictionary Research and Development Group (EDRDG).
+Purpose: Japanese spelling, reading, part-of-speech and domain verification.
+JmdictFurigana: JMdict-derived spelling/reading data by Doublevil.
+Purpose: spelling/reading and furigana validation.
+The applicable JMdict/JmdictFurigana attribution/licensing information is retained from the 2.7.3 release inputs.
+
+OPEN MULTILINGUAL WORDNET DATA
+Japanese WordNet / OMW 1.4.
+Copyright 2009, 2010 National Institute of Information and Communications Technology (NICT).
+Purpose: independent Japanese concept alignment and geographic-sense cross-checking.
+Full NICT licence included as JAPANESE_WORDNET_NICT_LICENSE.txt.
+
+MultiWordNet Italian / OMW 1.4.
+Licence: Creative Commons Attribution 3.0 Unported.
+Purpose: independent Italian concept alignment.
+Reference requested by the dataset authors:
+Emanuele Pianta, Luisa Bentivogli and Christian Girardi. MultiWordNet: Developing an Aligned Multilingual Database. Proceedings of the First International Conference on Global WordNet, 2002, pp. 293-302.
+Full licence notice included as MULTIWORDNET_IT_CC_BY_3.0.txt.
+
+INPUT SHA-256
+JMdict_e.gz: 7c235a7c6a2439c7c80d0a272d22d687ecac3451d24e49fe08f62fe778dc1ea4
+JmdictFurigana.json.zip: b4c27a835767e9b8bd87bd5a30c9691ad3d1d5100d4a131590628c2d547ce5d8
+omw-ja-1.4.tar.xz: d5ba581668b86f56cbca3c7d44ffb83d06533d1d024e2cc49444c1f4c0edb8db
+omw-it-1.4.tar.xz: 77556a2b6421c6964403c808b9c66c28217547676631741e55031caac13cf650
+
+LEXICAL QA POLICY
+FreeDict pairs are not treated as automatically correct. High-confidence source-pivot mismatches are corrected or merged only when supported by structured evidence from JMdict plus aligned Japanese/Italian WordNet concepts. Ambiguous conflicts are retained for later manual review rather than guessed.
+
+GEOGRAPHIC PROPER-NAME POLICY
+Proper names of countries, cities and comparable administrative subdivisions remain excluded from study. Version 2.7.6 extends the exclusion to continent names, named islands, archipelagos and explicit insular regions found in the study corpus. Stable vocabulary IDs are retained and the records are disabled rather than deleted, preserving upgrade/progress compatibility. Common geographic vocabulary (for example island, continent, country, city, mountain and river) and other natural geographic features are not removed solely for being geographic.
