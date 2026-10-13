@@ -49,13 +49,6 @@ Per passare a un altro dispositivo:
 
 La PWA e l'APK Android conservano i dati in spazi separati. Un backup manuale è quindi necessario per trasferire i progressi fra le due distribuzioni. I browser possono eliminare i dati locali in alcune circostanze: **si consiglia di esportare periodicamente un backup**.
 
-## Versioni del progetto
-
-- **Kotoba Web 3.1.9:** PWA multipiattaforma pubblicata su GitHub Pages.
-- **Kotoba per Android:** viene mantenuta anche una distribuzione APK. La versione Android 3.1.8 è la release stabile di riferimento; la 3.1.9 APK è ancora in collaudo per la gestione nativa dell'importazione/esportazione dei file.
-
-Le versioni condividono il motore di apprendimento e il corpus didattico, ma possono avere disponibilità differenti durante il collaudo di nuove funzionalità.
-
 ## Funzionamento e pubblicazione
 
 Questa PWA è composta da file statici HTML, CSS, JavaScript e dati locali, pubblicati tramite **GitHub Pages**. Non è necessario un server applicativo o un database online dei progressi.
