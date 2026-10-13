@@ -1,10 +1,10 @@
-# Kotoba Offline
+# Kotoba Web
 
 **Kotoba** è un'app gratuita per studiare il vocabolario giapponese e i sillabari, con esercizi personalizzati, ripasso dilazionato e progressi salvati sul dispositivo.
 
 **[Apri Kotoba Web](https://naitsirc90.github.io/kotoba/)**
 
-La versione Web è una **Progressive Web App (PWA)**: può essere utilizzata dal browser e aggiunta alla schermata Home di smartphone e tablet, senza scaricare un APK o passare da uno store. Dopo il primo caricamento completo, i contenuti dell'app possono essere utilizzati anche offline.
+Kotoba è una **Progressive Web App (PWA)**: può essere utilizzata dal browser e aggiunta alla schermata Home di smartphone e tablet. Dopo il primo caricamento completo, i contenuti dell'app possono essere utilizzati anche offline.
 
 ## Funzionalità
 
@@ -47,7 +47,7 @@ Per passare a un altro dispositivo:
 3. Apri Kotoba sul secondo dispositivo e usa **Importa progressi**.
 4. Controlla il riepilogo delle modifiche e risolvi eventuali conflitti prima di confermare.
 
-La PWA e l'APK Android conservano i dati in spazi separati. Un backup manuale è quindi necessario per trasferire i progressi fra le due distribuzioni. I browser possono eliminare i dati locali in alcune circostanze: **si consiglia di esportare periodicamente un backup**.
+I progressi non vengono sincronizzati automaticamente fra browser o dispositivi diversi: per trasferirli occorre esportare e importare manualmente il file di backup. I browser possono eliminare i dati locali in alcune circostanze: **si consiglia di esportare periodicamente un backup**.
 
 ## Funzionamento e pubblicazione
 
