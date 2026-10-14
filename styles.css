@@ -473,3 +473,69 @@ body.kotoba-exercise-viewport .kana-answer-note { min-height: 20px; margin-botto
   body.kotoba-exercise-viewport .kotoba-example { margin: 5px 0; padding: 7px 9px; }
 }
 
+
+
+/* Kotoba 3.1.11 - Only answer cards resize while an editable field is focused.
+   Normal navigation retains its preexisting scroll behaviour. */
+body.kotoba-exercise-viewport.kotoba-keyboard-active,
+body.kotoba-exercise-viewport.kotoba-keyboard-active #app {
+  height: var(--kotoba-exercise-height, 100dvh) !important;
+  min-height: 0;
+  max-height: var(--kotoba-exercise-height, 100dvh);
+  overflow: hidden;
+}
+body.kotoba-exercise-viewport.kotoba-keyboard-active .app-shell {
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+}
+body.kotoba-exercise-viewport.kotoba-keyboard-active .screen {
+  height: auto;
+  min-height: 0;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+body.kotoba-exercise-viewport.kotoba-keyboard-active .session-header {
+  margin-bottom: 6px;
+}
+body.kotoba-exercise-viewport.kotoba-keyboard-active .study-card {
+  min-height: 0;
+  justify-content: safe flex-start;
+  overflow-y: auto;
+  scroll-padding-top: 12px;
+  scroll-padding-bottom: 18px;
+  padding-top: 12px;
+  padding-bottom: 18px;
+}
+body.kotoba-exercise-viewport.kotoba-keyboard-active .question-prompt {margin-bottom: 6px;}
+body.kotoba-exercise-viewport.kotoba-keyboard-active .question-term {
+  font-size: clamp(27px, 8vw, 39px);
+  margin-bottom: 8px;
+}
+body.kotoba-exercise-viewport.kotoba-keyboard-active .question-reading {margin-bottom: 8px;}
+body.kotoba-exercise-viewport.kotoba-keyboard-active .kana-question-main {
+  font-size: clamp(42px, 14vw, 67px);
+  margin: 4px 0 10px;
+}
+body.kotoba-exercise-viewport.kotoba-keyboard-active .answer-input {
+  scroll-margin-block: 18px;
+  min-height: 48px;
+  font-size: 18px;
+}
+.daily-setup-intro {
+  border: 1px solid #b7cfc0;
+  background: #f1f8f3;
+  border-radius: 15px;
+  padding: 18px 15px;
+  margin: 14px 0 4px;
+}
+.daily-setup-intro > strong {display:block;font-size: 17px;line-height: 1.35;margin-bottom: 8px;}
+.daily-setup-intro > p {font-size: 14px;margin: 0 0 13px;}
+.daily-setup-intro .field-help {font-size: 13px;margin: 12px 0 0;}
+.daily-setup-intro .btn {height: auto;min-height: 54px;padding: 10px 14px;}
+/* Before the optional setup, do not misleadingly display 0 new/review words. */
+.daily-session-card .daily-setup-intro ~ .today-grid,
+.daily-session-card .daily-setup-intro ~ .session-time {display:none;}
+.onboarding {flex-direction: column;align-items:stretch;justify-content:center;}
+.onboarding .onboarding-copy {width:100%;}
+.onboarding-exit {align-self:flex-start; margin: 0 0 22px;}

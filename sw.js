@@ -1,8 +1,8 @@
 /* Kotoba offline-first: retain previous caches until the new package is complete. */
-const VERSION='3.1.10-r1';
+const VERSION='3.1.11-r1';
 const CACHE='kotoba-shell-'+VERSION;
 const ASSETS=[
- './','./index.html','./styles.css','./bootstrap.js','./app.js','./manifest.webmanifest',
+ './','./index.html','./styles.css','./desktop.css','./bootstrap.js','./app.js','./manifest.webmanifest',
  './assets/data/vocabulary.json','./assets/data/learning-priority.json','./assets/data/legacy-compat.json',
  './icons/icon-192.png','./icons/icon-512.png','./README-LICENSES.txt',
  './licenses/JAPANESE_WORDNET_NICT_LICENSE.txt','./licenses/JLPT_DATA.txt','./licenses/LEXICAL_SOURCES_2.7.6.txt',

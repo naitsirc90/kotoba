@@ -1,7 +1,7 @@
 (() => {
 const EMBEDDED_VOCABULARY = window.__KOTOBA_VOCABULARY__;
 const embeddedVocabularyById = new Map((EMBEDDED_VOCABULARY.entries || []).map(v => [v.id, v]));
-const KOTOBA_RELEASE = '3.1.10-cross-platform';
+const KOTOBA_RELEASE = '3.1.11-cross-platform';
 // Immutable, locally embedded priority index. This index does not change
 // SRS deadlines, selected topics, Study Level gates or saved progress.
 const KOTOBA_LEARNING_PRIORITY_SCORES = window.__KOTOBA_LEARNING_PRIORITY__?.scores || {};
@@ -2014,7 +2014,7 @@ const root = document.querySelector('#app');
 let vocabulary = [];
 let state = migrateEquivalentVocabularyState(loadState());
 saveState(state);
-let view = state.onboardingComplete ? 'home' : 'onboarding';
+let view = 'home';
 let onboardingStep = 1;
 let runtime = null;
 let feedback = null;
@@ -2127,7 +2127,7 @@ function shell(content, active = view) {
     mainViewContentCache.set(active, content);
   }
   document.body.classList.toggle('kotoba-exercise-viewport', active === 'session');
-  root.innerHTML = `<div class="app-shell"><main class="screen">${content}</main>${nav(active)}${renderResetDialog()}</div>`;
+  root.innerHTML = `<div class="app-shell"><main class="screen screen-${active}">${content}</main>${nav(active)}${renderResetDialog()}</div>`;
   bindCommon();
 }
 
@@ -2338,7 +2338,7 @@ function bindCommon() {
   document.querySelector('[data-action="confirm-reset"]')?.addEventListener('click', () => {
     state = resetState();
     resetDialogOpen = false;
-    view = 'onboarding';
+    view = 'home';
     onboardingStep = 1;
     runtime = null;
     feedback = null;
@@ -2437,12 +2437,13 @@ function renderHome() {
   const pausedSession = state.activeSession && Array.isArray(state.activeSession.items) && state.activeSession.items.length
     ? state.activeSession
     : null;
-  const canStartDaily = !pausedSession && !dailyDone && preview.items.length > 0;
+  const needsDailySetup = !state.onboardingComplete;
+  const canStartDaily = !needsDailySetup && !pausedSession && !dailyDone && preview.items.length > 0;
   const activeCount = activeVocabularyIds(state).length;
   const goal = dailyGoalProgress(state);
   const studiedMinutes = Math.floor(goal.studiedSeconds / 60);
   const unseenSelected = eligibleNewWordsByStudyLevel(vocabulary, state, state.settings.selectedTopics || []).words.length;
-  const noDailyContent = !dailyDone && preview.items.length === 0;
+  const noDailyContent = !needsDailySetup && !dailyDone && preview.items.length === 0;
   shell(`
     <header class="home-hero">
       <p class="eyebrow">VOCABOLARIO GIAPPONESE</p>
@@ -2466,15 +2467,21 @@ function renderHome() {
 
     <section class="today-card daily-session-card">
       <p class="eyebrow">SESSIONE DI OGGI</p>
+      ${needsDailySetup ? `<div class="daily-setup-intro" role="note">
+        <strong>Prepara lo studio del vocabolario</strong>
+        <p>Una breve guida ti aiuta a scegliere tempo, livello e argomenti. Partirà solo quando vorrai.</p>
+        <button class="btn primary wide" type="button" data-action="open-daily-guide">Configura lo studio giornaliero</button>
+        <p class="field-help">Vuoi esercitarti subito con hiragana o katakana? Apri la sezione <strong>Kana</strong> nel menu: non serve completare la guida.</p>
+      </div>` : ''}
       <div class="today-grid">
         <div><strong>${dailyDone ? 0 : preview.newCount}</strong><span>nuovi vocaboli</span></div>
         <div><strong>${dailyDone ? 0 : preview.reviewCount}</strong><span>da ripassare</span></div>
       </div>
-      <p class="session-time">≈ ${canStartDaily ? formatMinutes(preview.estimatedSeconds) : 0} min</p>
+      <p class="session-time">${needsDailySetup ? "Tempo e parole da configurare" : `≈ ${canStartDaily ? formatMinutes(preview.estimatedSeconds) : 0} min`}</p>
       ${!dailyDone && preview.capMessage ? `<p class="notice">${escapeHtml(preview.capMessage)}</p>` : ''}
       ${!dailyDone && preview.deferredReviewCount ? `<p class="notice">${preview.deferredReviewCount} ripassi meno urgenti verranno rimandati automaticamente.</p>` : ''}
       ${noDailyContent ? `<p class="notice">La sessione di oggi non è stata completata, ma al momento non ci sono contenuti disponibili. Se hai parole già studiate puoi usare il ripasso libero; per aggiungere nuove parole seleziona altri argomenti.</p>` : ''}
-      <button class="btn primary wide" data-action="start-session" ${canStartDaily ? '' : 'disabled'}>${pausedSession ? 'Riprendi prima la sessione in pausa' : dailyDone ? 'Sessione quotidiana completata' : canStartDaily ? 'Inizia sessione' : 'Nessun contenuto disponibile'}</button>
+      ${needsDailySetup ? '' : `<button class="btn primary wide" data-action="start-session" ${canStartDaily ? '' : 'disabled'}>${pausedSession ? 'Riprendi prima la sessione in pausa' : dailyDone ? 'Sessione quotidiana completata' : canStartDaily ? 'Inizia sessione' : 'Nessun contenuto disponibile'}</button>`}
     </section>
 
     <section class="panel extra-study">
@@ -2494,6 +2501,7 @@ function renderHome() {
   `, 'home');
   if (captureMode) return;
   document.querySelector('[data-action="resume-session"]')?.addEventListener('click', resumeSavedSession);
+  document.querySelector('[data-action="open-daily-guide"]')?.addEventListener('click', () => { onboardingStep = 1; view = 'onboarding'; render(); });
   document.querySelector('[data-action="start-session"]')?.addEventListener('click', () => startSession('daily'));
   document.querySelector('[data-action="open-free"]')?.addEventListener('click', openFreeConfig);
 }
@@ -3045,9 +3053,9 @@ function renderOnboarding() {
       <div class="onboarding-chip-grid">${TOPICS.map(t => `<button class="chip ${state.settings.selectedTopics.includes(t.id) ? 'selected' : ''}" data-topic="${t.id}">${t.label}</button>`).join('')}</div>
       <button class="btn primary wide sticky-cta" data-action="onboarding-next" ${state.settings.selectedTopics.length ? '' : 'disabled'}>Continua</button></div>`;
   } else {
-    body = `<div class="onboarding-copy ready"><p class="eyebrow">5 DI 5</p><div class="ready-mark">準</div><h1>Pronto</h1><p>Ogni giorno: circa ${state.settings.dailyGoalMinutes} minuti · ${DAILY_BALANCE_LABELS[dailyBalanceIndex(state.settings)]}. Potrai cambiare queste preferenze quando vuoi.</p><p class="field-help">Livello di partenza: <strong>${studyLevelChoiceLabel(state.settings.studyLevel)}</strong></p><button class="btn primary wide" data-action="onboarding-start">Inizia</button></div>`;
+    body = `<div class="onboarding-copy ready"><p class="eyebrow">5 DI 5</p><div class="ready-mark">準</div><h1>Pronto</h1><p>Ogni giorno: circa ${state.settings.dailyGoalMinutes} minuti · ${DAILY_BALANCE_LABELS[dailyBalanceIndex(state.settings)]}. Potrai cambiare queste preferenze quando vuoi.</p><p class="field-help">Livello di partenza: <strong>${studyLevelChoiceLabel(state.settings.studyLevel)}</strong></p><p class="field-help">Ora puoi avviare la tua prima sessione quando preferisci, dalla Home.</p><button class="btn primary wide" data-action="onboarding-start">Salva e torna alla Home</button></div>`;
   }
-  shell(`<section class="onboarding">${body}</section>`, 'onboarding');
+  shell(`<section class="onboarding"><button class="text-btn onboarding-exit" data-action="onboarding-exit" type="button">← Torna alla Home</button>${body}</section>`, 'onboarding');
   document.querySelector('#onboarding-balance')?.addEventListener('input', e => {
     document.querySelector('#onboarding-balance-label').textContent = DAILY_BALANCE_LABELS[Number(e.target.value)];
   });
@@ -3075,8 +3083,9 @@ function renderOnboarding() {
   }));
   document.querySelector('[data-action="select-all"]')?.addEventListener('click', () => { state.settings.selectedTopics = TOPICS.map(t => t.id); saveState(state); renderOnboarding(); });
   document.querySelector('[data-action="deselect-all"]')?.addEventListener('click', () => { state.settings.selectedTopics = []; saveState(state); renderOnboarding(); });
+  document.querySelector('[data-action="onboarding-exit"]')?.addEventListener('click', () => { view = 'home'; render(); });
   document.querySelector('[data-action="onboarding-start"]')?.addEventListener('click', () => {
-    state.onboardingComplete = true; saveState(state); view = 'home'; startSession('daily');
+    state.onboardingComplete = true; saveState(state); view = 'home'; render();
   });
 }
 
@@ -3596,7 +3605,7 @@ function renderSession() {
     submitAnswer(document.querySelector('#answer-input').value);
   });
   const input = document.querySelector('#answer-input');
-  if (input) setTimeout(() => input.focus(), 0);
+  if (input && window.matchMedia('(pointer: fine)').matches) setTimeout(() => { if (input.isConnected) input.focus(); }, 0);
   document.querySelectorAll('[data-option]').forEach(btn => btn.addEventListener('click', () => {
     selectedOption = item.options[Number(btn.dataset.option)];
     persistActiveSession();
@@ -3959,7 +3968,7 @@ function renderKanaExercise(){
   document.querySelector('[data-action="kana-pause"]')?.addEventListener('click',()=>pauseKanaTimer(true));
   document.querySelector('[data-action="kana-resume"]')?.addEventListener('click',()=>resumeKanaTimer(true));
   document.querySelectorAll('[data-action="kana-exit"]').forEach(b=>b.addEventListener('click',()=>{clearInterval(kanaClockTimer);clearTimeout(kanaFeedbackTimer);kanaRuntime=null;kanaState.activeSession=null;saveKanaState();view='kana';render()}));
-  if(!kanaRuntime.paused&&!f){setTimeout(()=>document.querySelector('[data-kana-input]')?.focus(),0);startKanaClock()}
+  if(!kanaRuntime.paused&&!f){if(window.matchMedia('(pointer: fine)').matches)setTimeout(()=>document.querySelector('[data-kana-input]')?.focus(),0);startKanaClock()}
 }
 function renderKanaComplete(){
   const r=kanaState.lastResult;if(!r){view='kana';return renderKana()}const pct=r.total?Math.round(r.correct/r.total*100):0;
@@ -3972,8 +3981,58 @@ function renderKanaComplete(){
 document.addEventListener('visibilitychange',()=>{if(view!=='kana-exercise'||!kanaRuntime)return;if(document.visibilityState==='hidden'&&!kanaRuntime.paused)pauseKanaTimer(false);else if(document.visibilityState==='visible'&&kanaRuntime.paused&&kanaRuntime.autoPaused){resumeKanaTimer(false);renderKanaExercise()}});
 
 
+// 3.1.11: the Android soft keyboard and the iOS/PWA visual viewport may
+// shrink independently of the layout viewport. Keep input inside the VISIBLE
+// exercise card without shifting the navigation screens or changing progress.
+let kotobaKeyboardFrame = 0;
+function kotobaFitVisibleAnswer() {
+  const activeInput = document.activeElement;
+  const isAnswer = !!activeInput && (activeInput.matches('#answer-input, [data-kana-input]'));
+  const isExercise = view === 'session' || view === 'kana-exercise';
+  const enabled = isAnswer && isExercise && document.contains(activeInput);
+  document.body.classList.toggle('kotoba-keyboard-active', enabled);
+  if (!enabled) {
+    document.documentElement.style.removeProperty('--kotoba-exercise-height');
+    return;
+  }
+  const viewport = window.visualViewport;
+  const availableHeight = Math.max(180, Math.floor(viewport?.height || window.innerHeight));
+  document.documentElement.style.setProperty('--kotoba-exercise-height', `${availableHeight}px`);
+  const card = activeInput.closest('.study-card');
+  if (!card) return;
+  const inputRect = activeInput.getBoundingClientRect();
+  const cardRect = card.getBoundingClientRect();
+  const targetBottom = Math.min(cardRect.bottom - 14, availableHeight - 14);
+  if (inputRect.bottom > targetBottom) {
+    card.scrollTop += inputRect.bottom - targetBottom + 12;
+  } else if (inputRect.top < cardRect.top + 12) {
+    card.scrollTop -= cardRect.top + 16 - inputRect.top;
+  }
+}
+function kotobaScheduleVisibleAnswer() {
+  if (kotobaKeyboardFrame) cancelAnimationFrame(kotobaKeyboardFrame);
+  kotobaKeyboardFrame = requestAnimationFrame(() => {
+    kotobaKeyboardFrame = 0;
+    kotobaFitVisibleAnswer();
+  });
+}
+document.addEventListener('focusin', event => {
+  if (event.target?.matches?.('#answer-input, [data-kana-input]')) {
+    kotobaScheduleVisibleAnswer();
+  }
+});
+document.addEventListener('focusout', event => {
+  if (event.target?.matches?.('#answer-input, [data-kana-input]')) {
+    setTimeout(kotobaScheduleVisibleAnswer, 120);
+  }
+});
+window.visualViewport?.addEventListener('resize', kotobaScheduleVisibleAnswer);
+window.visualViewport?.addEventListener('scroll', kotobaScheduleVisibleAnswer);
+window.addEventListener('resize', kotobaScheduleVisibleAnswer);
+
 function render() {
   document.body.classList.toggle('kotoba-exercise-viewport', view === 'session' || view === 'kana-exercise');
+  if (!['session', 'kana-exercise'].includes(view)) kotobaFitVisibleAnswer();
   if (!vocabulary.length) return;
   switch (view) {
     case 'onboarding': return renderOnboarding();

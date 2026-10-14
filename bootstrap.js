@@ -1,5 +1,6 @@
-/* Kotoba 3.1.10 - HTTPS PWA boot, no runtime AI or external server calls. */
+/* Kotoba 3.1.11 - HTTPS PWA boot, no runtime AI or external server calls. */
 (() => {
+  document.body.classList.add('kotoba-web');
   const status=(message)=>{
     const app=document.querySelector('#app');
     if(app)app.innerHTML='<div class="fatal"><h2>Kotoba Offline</h2><p>'+String(message).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</p></div>';

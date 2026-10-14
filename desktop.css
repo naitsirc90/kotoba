@@ -1,0 +1,139 @@
+/* Kotoba Web 3.1.11 — DESKTOP-ONLY responsive layout.
+   Android package does not include this stylesheet or the .kotoba-web flag.
+   Narrow windows retain the familiar phone-first layout. */
+@media (min-width: 980px) {
+  body.kotoba-web:not(.kotoba-exercise-viewport) { padding: 22px 20px; }
+  body.kotoba-web:not(.kotoba-exercise-viewport) .app-shell:has(> .bottom-nav) {
+    display: grid;
+    grid-template-columns: 206px minmax(0, 1fr);
+    align-items: stretch;
+    width: min(1260px, 100%);
+    max-width: none;
+    min-height: calc(100dvh - 44px);
+    margin: 0 auto;
+    border-radius: 24px;
+    overflow: visible;
+    box-shadow: 0 16px 56px rgba(19,27,24,.075);
+    background: #fff;
+  }
+  body.kotoba-web .app-shell:has(> .bottom-nav) > .screen {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    min-height: calc(100dvh - 44px);
+    padding: 36px clamp(26px,3.7vw,52px) 56px;
+    background: var(--bg);
+    border-radius: 0 24px 24px 0;
+  }
+  body.kotoba-web .app-shell:has(> .bottom-nav) > .bottom-nav {
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    top: 22px;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    width: 100%;
+    height: auto;
+    padding: 28px 14px 26px;
+    background: #fff;
+    border: 0;
+    border-right: 1px solid var(--line);
+    border-radius: 24px 0 0 0;
+    backdrop-filter: none;
+  }
+  body.kotoba-web .app-shell:has(> .bottom-nav) > .bottom-nav::before {
+    content: 'ことば  ·  Kotoba';
+    display: block;
+    font-size: 19px;
+    letter-spacing: -.025em;
+    font-weight: 850;
+    color: var(--primary);
+    padding: 6px 12px 25px;
+  }
+  body.kotoba-web .bottom-nav .nav-item {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: 48px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+  }
+  body.kotoba-web .bottom-nav .nav-item:hover,
+  body.kotoba-web .bottom-nav .nav-item.active { background: var(--primary-soft); }
+  body.kotoba-web .bottom-nav .nav-dot { width: 7px; height: 7px; flex-shrink: 0; border-radius: 999px; }
+  body.kotoba-web .bottom-nav .nav-item.active .nav-dot { background: var(--primary); }
+  body.kotoba-web .screen-home {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(265px, .95fr);
+    column-gap: 18px;
+    align-content: start;
+  }
+  body.kotoba-web .screen-home > .home-hero {grid-column: 1 / -1;}
+  body.kotoba-web .screen-home > .daily-goal-card { grid-column: 1; }
+  body.kotoba-web .screen-home > .resume-session-card { grid-column: 1; }
+  body.kotoba-web .screen-home > .daily-session-card { grid-column: 1; }
+  body.kotoba-web .screen-home > .extra-study {
+    grid-column: 2;
+    grid-row: 2 / span 3;
+    align-self: start;
+    margin-top: 0;
+    padding: 23px;
+  }
+  body.kotoba-web .screen-home > .mini-stats {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 1px;
+    margin-top: 18px;
+  }
+  body.kotoba-web .screen-home > .mini-stats > div {
+    display: block;
+    padding: 18px 16px;
+    text-align: center;
+  }
+  body.kotoba-web .screen-home > .mini-stats strong {display:block;margin-top:7px;}
+  body.kotoba-web .screen-topics .topic-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+  body.kotoba-web .screen-kana {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    column-gap:18px;
+    align-content:start;
+    align-items:start;
+  }
+  body.kotoba-web .screen-kana > .kana-page-header {grid-column:1/-1;}
+  body.kotoba-web .screen-kana > .kana-panel {margin-bottom:18px;}
+  body.kotoba-web .screen-kana > .kana-start-summary {grid-column:1/-1;}
+  body.kotoba-web .screen-kana > [data-action="kana-start"],
+  body.kotoba-web .screen-kana > [data-action="kana-last-result"] {
+    grid-column:1/-1;
+    width:min(420px,100%);
+  }
+  body.kotoba-web .screen-settings > .panel,
+  body.kotoba-web .screen-progress > .panel {max-width:900px;}
+  body.kotoba-web .btn:hover:not(:disabled),
+  body.kotoba-web .option:hover:not(:disabled),
+  body.kotoba-web .chip:hover:not(:disabled) {filter:brightness(.97);}
+  body.kotoba-web :is(button, input, select):focus-visible {outline:3px solid #438a6b;outline-offset:3px;}
+  /* Sessions have no sidebar; wider but centred question cards. */
+  body.kotoba-web .app-shell:not(:has(> .bottom-nav)) {
+    max-width:800px;
+    margin-left:auto;
+    margin-right:auto;
+  }
+  body.kotoba-web .app-shell:not(:has(> .bottom-nav)) .screen {max-width:800px;}
+  body.kotoba-web.kotoba-exercise-viewport .app-shell {width:100%;height:100%;}
+}
+@media (min-width: 980px) and (max-width: 1120px) {
+  body.kotoba-web .screen-home {grid-template-columns:minmax(0,1fr) minmax(250px,.9fr);gap:14px;}
+  body.kotoba-web .app-shell:has(> .bottom-nav) > .screen {padding:28px 24px 44px;}
+}
+@media (prefers-reduced-motion: reduce) {
+  body.kotoba-web .app-shell .screen {scroll-behavior:auto;}
+}
