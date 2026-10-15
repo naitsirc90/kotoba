@@ -1,5 +1,5 @@
 /* Kotoba offline-first: retain previous caches until the new package is complete. */
-const VERSION='3.1.11-r1';
+const VERSION='3.1.12-op5-candidate1';
 const CACHE='kotoba-shell-'+VERSION;
 const ASSETS=[
  './','./index.html','./styles.css','./desktop.css','./bootstrap.js','./app.js','./manifest.webmanifest',
