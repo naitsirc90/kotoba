@@ -1,7 +1,24 @@
 (() => {
 const EMBEDDED_VOCABULARY = window.__KOTOBA_VOCABULARY__;
 const embeddedVocabularyById = new Map((EMBEDDED_VOCABULARY.entries || []).map(v => [v.id, v]));
-const KOTOBA_RELEASE = '3.1.12-op5-candidate-NOT-RELEASED';
+// M3 operational eligibility overlay: immutable M2 and runtime vocabulary flags are preserved.
+const KOTOBA_OPERATIONAL_ELIGIBILITY = window.__KOTOBA_OPERATIONAL_ELIGIBILITY__;
+if (!KOTOBA_OPERATIONAL_ELIGIBILITY || KOTOBA_OPERATIONAL_ELIGIBILITY.schema !== 'KOTOBA_M3_OP5C_OPERATIONAL_ELIGIBILITY_V1' ||
+    KOTOBA_OPERATIONAL_ELIGIBILITY.policyVersion !== 'M3_OP5C_QUARANTINE_20261102_V1' ||
+    KOTOBA_OPERATIONAL_ELIGIBILITY.unresolvedOP5CIds?.length !== 13 ||
+    KOTOBA_OPERATIONAL_ELIGIBILITY.passiveOnlyEditorialIds?.length !== 55 ||
+    KOTOBA_OPERATIONAL_ELIGIBILITY.blockedIdList?.length !== 68) {
+  throw new Error('Manifesto di esclusione M3 non disponibile o non coerente: studio bloccato per sicurezza.');
+}
+const KOTOBA_OPERATIONAL_HOLD_IDS = new Set(KOTOBA_OPERATIONAL_ELIGIBILITY.blockedIdList);
+if (KOTOBA_OPERATIONAL_HOLD_IDS.size !== 68 ||
+    [...KOTOBA_OPERATIONAL_HOLD_IDS].some(id => !embeddedVocabularyById.has(id))) {
+  throw new Error('Manifesto M3: identificativi non coerenti con il dizionario.');
+}
+const isOperationallyHeldId = id => KOTOBA_OPERATIONAL_HOLD_IDS.has(id);
+const isOperationallyStudyable = vocab => Boolean(vocab && vocab.studyEnabled !== false && !isOperationallyHeldId(vocab.id));
+
+const KOTOBA_RELEASE = '3.1.14-m3-session-start-performance-pwa-QA';
 // Immutable, locally embedded priority index. This index does not change
 // SRS deadlines, selected topics, Study Level gates or saved progress.
 const KOTOBA_LEARNING_PRIORITY_SCORES = window.__KOTOBA_LEARNING_PRIORITY__?.scores || {};
@@ -224,7 +241,7 @@ function effectiveLearningSense(vocab) {
 }
 
 function isActiveStudySense(vocab) {
-  return Boolean(vocab && vocab.studyEnabled !== false && !vocab.aliasOf && !isMergedSense(vocab));
+  return Boolean(isOperationallyStudyable(vocab) && !vocab.aliasOf && !isMergedSense(vocab));
 }
 
 function sensePriorityRank(vocab) {
@@ -270,7 +287,7 @@ function mergeVocabularyProgressRecords(leftRecord, rightRecord) {
 function directSenseIntroductionAllowed(state, vocab) {
   if (!vocab || !isActiveStudySense(vocab) || isVocabularyExcluded(state, vocab.id)) return false;
   for (const prerequisiteId of (vocab.prerequisiteSenseIds || [])) {
-    if (isVocabularyExcluded(state, prerequisiteId)) return false;
+    if (isOperationallyHeldId(prerequisiteId) || isVocabularyExcluded(state, prerequisiteId)) return false;
     if (!state.progress?.[prerequisiteId]?.introducedAt) return false;
     if (!isSensePriorityUnlocked(state, prerequisiteId)) return false;
   }
@@ -320,7 +337,7 @@ function migrateSensePriorityState(state) {
       if (i < oldIndex) { keep.push(item); newIndex++; continue; }
       if (!item?.vocabularyId) { keep.push(item); continue; }
       const vocab = embeddedVocabularyById.get(item.vocabularyId);
-      let allowed = Boolean(vocab) && !isMergedSense(vocab) && vocab.studyEnabled !== false && !isVocabularyExcluded(state, vocab.id);
+      let allowed = Boolean(vocab) && !isMergedSense(vocab) && isOperationallyStudyable(vocab) && !isVocabularyExcluded(state, vocab.id);
       const isNewItem = item.type === 'learn' || item.source === 'new' || item.source === 'extra-new';
       if (allowed && isNewItem && !state.progress?.[vocab.id]?.introducedAt) allowed = directSenseIntroductionAllowed(state, vocab);
       if (allowed) keep.push(item);
@@ -392,6 +409,32 @@ function mergeDirectionProgressForAlias(a, b) {
   }
   merged.level = levelFromProgress(merged);
   return merged;
+}
+
+
+// Only incomplete ephemeral session items are filtered. Historical progress, answers,
+// two SRS directions, achievements and user exclusions are NEVER removed or reset.
+function sanitizeSessionForM3OperationalHold(state) {
+  const saved=state?.activeSession;
+  if (!Array.isArray(saved?.items)) return state;
+  const oldIndex=Math.max(0,Math.min(saved.items.length, Number(saved.index||0)));
+  const kept=[]; let nextIndex=0; let currentRemoved=false;
+  for (let i=0;i<saved.items.length;i++) {
+    const item=saved.items[i];
+    const vocab=embeddedVocabularyById.get(item?.vocabularyId);
+    const valid=Boolean(vocab && isActiveStudySense(vocab) &&
+      !isVocabularyExcluded(state,vocab.id) &&
+      (!item.targetVocabularyId || !isOperationallyHeldId(item.targetVocabularyId)));
+    if(valid) {
+      if(item.type==='question') item.options=null; // Drop stale MC distractors from prior builds.
+      kept.push(item); if(i<oldIndex)nextIndex++;
+    } else if(i===oldIndex) currentRemoved=true;
+  }
+  saved.items=kept; saved.index=Math.min(nextIndex,kept.length);
+  saved.newSeen=(saved.newSeen||[]).filter(id=>!isOperationallyHeldId(id));
+  if(currentRemoved){saved.feedback=null;saved.selectedOption=null;saved.currentQuestionElapsedMs=0;}
+  if(!kept.length)state.activeSession=null;
+  return state;
 }
 
 function migrateEquivalentVocabularyState(inputState) {
@@ -483,7 +526,7 @@ function migrateEquivalentVocabularyState(inputState) {
   if (reconcileLexiconSession && state.activeSession?.items) {
     const saved = state.activeSession;
     const entries = new Map(EMBEDDED_VOCABULARY.entries.map(v => [v.id, v]));
-    const usable = item => entries.get(item?.vocabularyId)?.studyEnabled !== false && entries.has(item?.vocabularyId) && !isVocabularyExcluded(state, item.vocabularyId);
+    const usable = item => isOperationallyStudyable(entries.get(item?.vocabularyId)) && entries.has(item?.vocabularyId) && !isVocabularyExcluded(state, item.vocabularyId);
     const oldIndex = saved.index;
     const currentRemoved = !usable(saved.items[oldIndex]);
     saved.index = saved.items.slice(0, oldIndex).filter(usable).length;
@@ -511,6 +554,7 @@ function migrateEquivalentVocabularyState(inputState) {
   state.dataMigrations.lexiconSession310 = true;
   migrateIndependentDailyReviewSchedule(state);
   migrateSensePriorityState(state);
+  sanitizeSessionForM3OperationalHold(state);
   return state;
 }
 
@@ -944,7 +988,7 @@ function rebuildAnswerEquivalenceIndexes(entries) {
     values.filter(Boolean).forEach(v => set.add(v));
   };
   for (const entry of entries) {
-    if (entry.studyEnabled === false || entry.aliasOf || entry.mergedIntoSenseId || !entry.japanese || !(entry.italian || []).length) continue;
+    if (!isOperationallyStudyable(entry) || entry.aliasOf || entry.mergedIntoSenseId || !entry.japanese || !(entry.italian || []).length) continue;
     const japaneseReadingKey = normalizeJapanese(entry.japanese) + '\x1f' + normalizeJapanese(entry.kana || displayReading(entry));
     addMany(japaneseSurfaceReadingItalianAnswers, japaneseReadingKey, [...(entry.italian || []), ...(entry.alternativeItalian || [])]);
     const japaneseAnswers = [entry.japanese, entry.kana, ...(entry.alternativeJapanese || [])].filter(Boolean);
@@ -1246,12 +1290,14 @@ function distractorScore(candidate, target) {
 }
 
 function buildOptions(vocabulary, target, direction, seed, italianPrompt = null) {
+  if (!isActiveStudySense(target)) throw new Error('Opzioni richieste per senso cautelativo: '+(target?.id||'unknown'));
   const correct = direction === 'itToJp' ? target.japanese : target.italian[0];
   const normalizeLabel = direction === 'itToJp' ? normalizeJapanese : normalizeItalian;
   const validAnswers = new Set(acceptedAnswers(target, direction, italianPrompt).map(normalizeLabel));
   const buckets = new Map();
+  const promptKey = direction === 'itToJp' ? normalizeItalian(italianPrompt || target.italian[0] || '') : '';
   for (const candidate of vocabulary) {
-    if (candidate.id === target.id || candidate.studyEnabled === false || isVocabularyExcluded(state, candidate.id) || !candidate.japanese || !(candidate.italian || []).length) continue;
+    if (candidate.id === target.id || !isOperationallyStudyable(candidate) || isVocabularyExcluded(state, candidate.id) || !candidate.japanese || !(candidate.italian || []).length) continue;
     const label = direction === 'itToJp' ? candidate.japanese : candidate.italian[0];
     if (!label || validAnswers.has(normalizeLabel(label))) continue;
     // Extra guard for JP→IT: a different sense record with the identical Japanese
@@ -1260,7 +1306,6 @@ function buildOptions(vocabulary, target, direction, seed, italianPrompt = null)
     if (kotobaIsExcludedDistractorPair(candidate.id, target.id)) continue;
     // An IT→JP prompt must not show as wrong a Japanese answer attached to
     // the same Italian gloss, including documented alternative translations.
-    const promptKey = normalizeItalian(italianPrompt || target.italian[0] || '');
     if (direction === 'itToJp' && promptKey &&
         [...(candidate.italian || []), ...(candidate.alternativeItalian || [])]
         .some(label => normalizeItalian(label) === promptKey)) continue;
@@ -1323,7 +1368,7 @@ function renderJapaneseExerciseOption(surface, targetVocab = null) {
 // local data. This guarantees that the learning card can always show hiragana
 // without guessing a pronunciation.
 function canIntroduceVocabulary(vocab) {
-  if (!vocab?.japanese || isMergedSense(vocab)) return false;
+  if (!isActiveStudySense(vocab) || !vocab.japanese) return false;
   return !containsKanji(vocab.japanese) || Boolean(displayReading(vocab));
 }
 
@@ -1332,31 +1377,71 @@ function canIntroduceVocabulary(vocab) {
 // possible. Candidates that cannot be safely placed are deferred rather than
 // creating an easy back-to-back reverse prompt.
 function spreadCandidatesByVocabulary(candidates, minGap = QUESTION_REPEAT_GAP, initialRecent = []) {
-  const pending = [...candidates];
-  const ordered = [];
-  const recent = initialRecent.slice(-minGap);
-  const appearances = new Map();
-  while (pending.length) {
-    let bestIdx = -1;
-    let bestAppearances = Infinity;
-    for (let i = 0; i < pending.length; i++) {
-      const candidate = pending[i];
-      if (recent.includes(candidate.vocabularyId)) continue;
-      const seen = appearances.get(candidate.vocabularyId) || 0;
-      if (seen < bestAppearances) {
-        bestAppearances = seen;
-        bestIdx = i;
-        if (seen === 0) break;
+  // Exact same greedy rule as before, implemented as a stable priority queue.
+  // With thousands of studied senses the old repeated pending.splice() loop
+  // could make preparing a session quadratic. Priority is (times shown, original
+  // candidate position); the recent-vocabulary spacing rule is unchanged.
+  const groups = new Map();
+  candidates.forEach((candidate, index) => {
+    let group = groups.get(candidate.vocabularyId);
+    if (!group) { group = { indices: [], position: 0, used: 0 }; groups.set(candidate.vocabularyId, group); }
+    group.indices.push(index);
+  });
+  const heap = [];
+  const earlier = (a, b) => a.used < b.used || (a.used === b.used && a.index < b.index);
+  const push = entry => {
+    heap.push(entry);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (!earlier(heap[i], heap[parent])) break;
+      [heap[i], heap[parent]] = [heap[parent], heap[i]];
+      i = parent;
+    }
+  };
+  const pop = () => {
+    const top = heap[0];
+    const last = heap.pop();
+    if (heap.length) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        const left = 2 * i + 1, right = left + 1;
+        let best = i;
+        if (left < heap.length && earlier(heap[left], heap[best])) best = left;
+        if (right < heap.length && earlier(heap[right], heap[best])) best = right;
+        if (best === i) break;
+        [heap[best], heap[i]] = [heap[i], heap[best]];
+        i = best;
       }
     }
-    if (bestIdx < 0) break;
-    const [candidate] = pending.splice(bestIdx, 1);
-    ordered.push(candidate);
-    appearances.set(candidate.vocabularyId, (appearances.get(candidate.vocabularyId) || 0) + 1);
-    recent.push(candidate.vocabularyId);
+    return top;
+  };
+  for (const [id, group] of groups) push({ id, used: 0, index: group.indices[0] });
+  const ordered = [], selected = new Set();
+  const recent = initialRecent.slice(-minGap);
+  while (heap.length) {
+    const held = [];
+    let chosen = null;
+    while (heap.length) {
+      const current = pop();
+      if (recent.includes(current.id)) held.push(current);
+      else { chosen = current; break; }
+    }
+    for (const waiting of held) push(waiting);
+    if (!chosen) break;
+    ordered.push(candidates[chosen.index]);
+    selected.add(chosen.index);
+    const group = groups.get(chosen.id);
+    group.position++;
+    group.used++;
+    if (group.position < group.indices.length) {
+      push({ id: chosen.id, used: group.used, index: group.indices[group.position] });
+    }
+    recent.push(chosen.id);
     while (recent.length > minGap) recent.shift();
   }
-  return { ordered, deferred: pending };
+  return { ordered, deferred: candidates.filter((_, index) => !selected.has(index)) };
 }
 
 function safeRetryInsertionIndex(items, currentIndex, vocabularyId, minGap = QUESTION_REPEAT_GAP) {
@@ -1449,7 +1534,7 @@ function availableNewWords(vocabulary, state, selectedTopics) {
   // Topics identify the desired sense. A merged sense may still act as a topic
   // trigger, but its pedagogical target is the surviving merged-into sense.
   for (const trigger of vocabulary) {
-    if (trigger.studyEnabled === false || trigger.aliasOf || !trigger.japanese || !(trigger.italian || []).length) continue;
+    if (!isOperationallyStudyable(trigger) || trigger.aliasOf || !trigger.japanese || !(trigger.italian || []).length) continue;
     const matchedTopics = (trigger.topics || []).filter(t => selectedTopics.includes(t));
     if (!matchedTopics.length || isVocabularyExcluded(state, trigger.id)) continue;
     const target = trigger.mergedIntoSenseId ? vocabMap.get(trigger.mergedIntoSenseId) : trigger;
@@ -1516,7 +1601,7 @@ function topicLearningTargets(vocabulary, state, selectedTopics) {
   const vocabMap = new Map(vocabulary.map(v => [v.id, v]));
   const targets = new Map();
   for (const trigger of vocabulary) {
-    if (trigger.studyEnabled === false || trigger.aliasOf || !(trigger.topics || []).some(t => selectedTopics.includes(t))) continue;
+    if (!isOperationallyStudyable(trigger) || trigger.aliasOf || !(trigger.topics || []).some(t => selectedTopics.includes(t))) continue;
     if (isVocabularyExcluded(state, trigger.id)) continue;
     const target = trigger.mergedIntoSenseId ? vocabMap.get(trigger.mergedIntoSenseId) : trigger;
     if (!target || !isActiveStudySense(target) || !canIntroduceVocabulary(target) || isVocabularyExcluded(state, target.id)) continue;
@@ -1672,6 +1757,7 @@ function selectNewWords(vocabulary, state, selectedTopics, count, seed) {
 }
 
 function questionItem(vocab, direction, exerciseType, vocabulary, seed, source = 'review', includeOptions = true) {
+  if (!isActiveStudySense(vocab)) throw new Error('Quiz escluso dal filtro M3: '+(vocab?.id||'unknown'));
   const italianChoices = (vocab.italian || []).filter(Boolean);
   const italianPrompt = direction === 'itToJp' && italianChoices.length
     ? italianChoices[hashString(`${seed}:italian-prompt:${vocab.id}`) % italianChoices.length]
@@ -1683,6 +1769,7 @@ function questionItem(vocab, direction, exerciseType, vocabulary, seed, source =
     exerciseType,
     source,
     italianPrompt,
+    optionSeed: seed,
     options: exerciseType === 'mc' && includeOptions ? buildOptions(vocabulary, vocab, direction, seed, italianPrompt) : null,
     retryCount: 0
   };
@@ -1895,7 +1982,7 @@ function buildFreeSession(vocabulary, state, now = new Date(), previewOnly = fal
 }
 
 
-function buildExtraNewSession(vocabulary, state, now = new Date()) {
+function buildExtraNewSession(vocabulary, state, now = new Date(), deferOptions = false) {
   const seed = `${dateSeed(now)}:extra-new:${(state.sessions || []).length}:${introducedToday(state, now)}`;
   const avgSeconds = averageQuestionSeconds(state);
   const targetSeconds = 10 * 60;
@@ -1906,7 +1993,7 @@ function buildExtraNewSession(vocabulary, state, now = new Date()) {
   const newCount = Math.min(requested, capacityForNew);
   const selectedNew = selectNewWords(vocabulary, state, state.settings.selectedTopics || [], newCount, seed);
   const items = [];
-  appendNewLearningBatch(items, selectedNew, vocabulary, state, seed, true, 'extra-new');
+  appendNewLearningBatch(items, selectedNew, vocabulary, state, seed, !deferOptions, 'extra-new');
   return {
     seed, items, reviewCount: 0, deferredReviewCount: 0, newCount: selectedNew.length,
     requestedNew: requested, estimatedSeconds: Math.round(selectedNew.length * costPerNew),
@@ -1914,7 +2001,7 @@ function buildExtraNewSession(vocabulary, state, now = new Date()) {
   };
 }
 
-function buildExtraActiveSession(vocabulary, state, now = new Date()) {
+function buildExtraActiveSession(vocabulary, state, now = new Date(), deferOptions = false) {
   const seed = `${dateSeed(now)}:extra-active:${(state.sessions || []).length}:${(state.answers || []).length}`;
   const avgSeconds = averageQuestionSeconds(state);
   const targetSeconds = 10 * 60;
@@ -1930,7 +2017,7 @@ function buildExtraActiveSession(vocabulary, state, now = new Date()) {
     const vocab = vocabMap.get(candidate.vocabularyId);
     if (!vocab) continue;
     const type = exerciseTypeForVocabulary(state, vocab.id, candidate.direction, questionIndex++, seed);
-    items.push(questionItem(vocab, candidate.direction, type, vocabulary, `${seed}:${questionIndex}`, 'extra-active'));
+    items.push(questionItem(vocab, candidate.direction, type, vocabulary, `${seed}:${questionIndex}`, 'extra-active', !deferOptions));
   }
   return {
     seed, items, reviewCount: items.length, deferredReviewCount: Math.max(0, candidates.length - items.length),
@@ -1945,7 +2032,7 @@ function buildExtraActiveSession(vocabulary, state, now = new Date()) {
 const bothDirections = p => [p.itToJp, p.jpToIt];
 
 function computeStats(vocabulary, state, now = new Date()) {
-  const progressEntries = Object.entries(state.progress || {}).filter(([id]) => !isVocabularyExcluded(state, id) && !isMergedSense(embeddedVocabularyById.get(id)));
+  const progressEntries = Object.entries(state.progress || {}).filter(([id]) => !isOperationallyHeldId(id) && !isVocabularyExcluded(state, id) && !isMergedSense(embeddedVocabularyById.get(id)));
   const encounteredIds = new Set(progressEntries.filter(([, p]) => p.introducedAt).map(([id]) => id));
   const learned = progressEntries.filter(([, p]) => bothDirections(p).every(d => levelRank(levelFromProgress(d)) >= levelRank('Appreso'))).length;
   const mastered = progressEntries.filter(([, p]) => bothDirections(p).every(d => levelFromProgress(d) === 'Padroneggiato')).length;
@@ -1973,7 +2060,7 @@ function computeStats(vocabulary, state, now = new Date()) {
   const byTopic = {};
   const topicEffectiveIds = new Map();
   for (const vocab of vocabulary) {
-    if (vocab.studyEnabled === false || vocab.aliasOf || isVocabularyExcluded(state, vocab.id)) continue;
+    if (!isOperationallyStudyable(vocab) || vocab.aliasOf || isVocabularyExcluded(state, vocab.id)) continue;
     const effective = effectiveLearningSense(vocab);
     if (!effective || !isActiveStudySense(effective) || isVocabularyExcluded(state, effective.id)) continue;
     for (const topic of (vocab.topics || [])) {
@@ -2432,7 +2519,11 @@ function renderFreeConfig() {
   };
   exerciseInput.addEventListener('change', () => { saveChoices(); renderFreeConfig(); });
   newInput.addEventListener('change', () => { saveChoices(); renderFreeConfig(); });
-  document.querySelector('[data-action="start-free"]')?.addEventListener('click', () => {saveChoices(); startSession('free'); });
+  document.querySelector('[data-action="start-free"]')?.addEventListener('click', () => {
+    const previewStillCurrent = Number(exerciseInput.value) === exercises && Number(newInput.value) === selectedNew;
+    saveChoices();
+    startSession('free', previewStillCurrent ? preview : null);
+  });
   document.querySelector('[data-action="cancel-free"]')?.addEventListener('click', () => {view='home'; render();});
 }
 
@@ -2525,7 +2616,7 @@ function renderHome() {
   if (captureMode) return;
   document.querySelector('[data-action="resume-session"]')?.addEventListener('click', resumeSavedSession);
   document.querySelector('[data-action="open-daily-guide"]')?.addEventListener('click', () => { onboardingStep = 1; view = 'onboarding'; render(); });
-  document.querySelector('[data-action="start-session"]')?.addEventListener('click', () => startSession('daily'));
+  document.querySelector('[data-action="start-session"]')?.addEventListener('click', () => startSession('daily', preview));
   document.querySelector('[data-action="open-free"]')?.addEventListener('click', openFreeConfig);
 }
 
@@ -2977,7 +3068,7 @@ function renderSettings() {
       <details class="settings-disclosure" data-settings-section="data" ${settingsOpenSection === 'data' ? 'open' : ''}>
         <summary><span><strong>Informazioni e dati</strong><small>Versione ${escapeHtml(KOTOBA_RELEASE.split('-')[0])} · Fonti e licenze</small></span><span class="disclosure-arrow" aria-hidden="true">⌄</span></summary>
         <div class="settings-disclosure-body">
-          <p class="field-help"><strong>Versione app:</strong> ${escapeHtml(KOTOBA_RELEASE.split('-')[0])}<br><strong>Dizionario:</strong> Kotoba Lexicon V4.2 · ${EMBEDDED_VOCABULARY.meta.productionReadyCanonical.toLocaleString('it-IT')} accezioni canoniche (${EMBEDDED_VOCABULARY.meta.studyEnabledCanonical.toLocaleString('it-IT')} studiabili).<br><strong>Livelli:</strong> Essenziale, Base, Intermedio, Avanzato, Esperto. L'app è completamente offline e i dati restano in localStorage. <strong>HOLD:</strong> recuperi invariati rispetto alla 3.1.7.</p>
+          <p class="field-help"><strong>Versione app:</strong> ${escapeHtml(KOTOBA_RELEASE.split('-')[0])}<br><strong>Dizionario:</strong> Kotoba Lexicon V4.2 · ${EMBEDDED_VOCABULARY.meta.productionReadyCanonical.toLocaleString('it-IT')} accezioni canoniche (${EMBEDDED_VOCABULARY.meta.effectiveStudyEligible.toLocaleString('it-IT')} esercitabili (filtro M3)).<br><strong>Livelli:</strong> Essenziale, Base, Intermedio, Avanzato, Esperto. L'app è completamente offline e i dati restano in localStorage. <strong>HOLD:</strong> recuperi invariati rispetto alla 3.1.7.</p>
           <details class="kotoba-credits"><summary>Fonti e licenze del dizionario</summary>
       <p><strong>JMdict / EDRDG:</strong> grafie, letture e accezioni. © EDRDG e James W. Breen, CC BY-SA 4.0; dati selezionati e rielaborati per il progetto Kotoba Offline. Licenza: https://www.edrdg.org/edrdg/licence.html</p>
       <p><strong>FreeDict italiano–giapponese:</strong> dati storici di origine Wiktionary/DBnary, CC BY-SA 3.0. https://freedict.org/</p>
@@ -3234,6 +3325,7 @@ function pauseCurrentSession() {
 }
 
 function resumeSavedSession() {
+  sanitizeSessionForM3OperationalHold(state);
   const saved = state.activeSession;
   if (!saved || !Array.isArray(saved.items) || !saved.items.length) return;
   runtime = {
@@ -3255,13 +3347,22 @@ function resumeSavedSession() {
   renderSession();
 }
 
-function startSession(mode = 'daily') {
+function startSession(mode = 'daily', displayedPreview = null) {
   if (state.activeSession) return resumeSavedSession();
   const now = new Date();
-  const plan = mode === 'free' ? buildFreeSession(vocabulary, state, now)
-    : mode === 'extra-new' ? buildExtraNewSession(vocabulary, state, now)
-    : mode === 'extra-active' ? buildExtraActiveSession(vocabulary, state, now)
-    : buildDailySession(vocabulary, state, now);
+  const expectedSeed = mode === 'daily' ? dateSeed(now)
+    : mode === 'free' ? `${dateSeed(now)}:free:${(state.sessions || []).length}:${(state.answers || []).length}`
+    : null;
+  // The Home and Free screens already prepared an exact session plan. Reuse it
+  // instead of scanning 17,853 entries again after the user taps "Inizia".
+  // A midnight or progress/answer change invalidates it through the seed.
+  // Preview items deliberately have no multiple-choice distractors yet.
+  const plan = displayedPreview && expectedSeed && displayedPreview.seed === expectedSeed
+    ? displayedPreview
+    : mode === 'free' ? buildFreeSession(vocabulary, state, now, true)
+    : mode === 'extra-new' ? buildExtraNewSession(vocabulary, state, now, true)
+    : mode === 'extra-active' ? buildExtraActiveSession(vocabulary, state, now, true)
+    : buildDailySession(vocabulary, state, now, true);
   runtime = {
     ...plan,
     mode,
@@ -3313,8 +3414,9 @@ function rebuildRemainingMultipleChoiceOptions() {
     const item = runtime.items[i];
     if (item?.type !== 'question' || item.exerciseType !== 'mc') continue;
     const target = byId(item.vocabularyId);
-    if (!target || target.studyEnabled === false || isVocabularyExcluded(state, target.id)) continue;
-    item.options = buildOptions(vocabulary, target, item.direction, `${runtime.seed || 'session'}:rebuild:${i}`, item.italianPrompt);
+    if (!target || !isOperationallyStudyable(target) || isVocabularyExcluded(state, target.id)) continue;
+    // Invalidate obsolete distractors; rebuild only if this question is displayed.
+    item.options = null;
   }
 }
 
@@ -3330,9 +3432,7 @@ function retuneSelfAssessedQuestions(vocab, level) {
     if (item?.type !== 'question' || item.vocabularyId !== vocab.id) continue;
     const type = exerciseTypeForLevel(level, ordinal++, `${runtime.seed || 'session'}:self-assessed:${vocab.id}`);
     item.exerciseType = type;
-    item.options = type === 'mc'
-      ? buildOptions(vocabulary, vocab, item.direction, `${runtime.seed || 'session'}:self-assessed-options:${vocab.id}:${i}`, item.italianPrompt)
-      : null;
+    item.options = null;
   }
   runtime.currentQuestionElapsedMs = 0;
   feedback = null;
@@ -3347,7 +3447,7 @@ function adaptRemainingSessionExerciseTypes() {
     const item = runtime.items[i];
     if (item?.type !== 'question') continue;
     const vocab = byId(item.vocabularyId);
-    if (!vocab || vocab.studyEnabled === false || isVocabularyExcluded(state, vocab.id)) continue;
+    if (!vocab || !isOperationallyStudyable(vocab) || isVocabularyExcluded(state, vocab.id)) continue;
     const progress = state?.progress?.[item.vocabularyId]?.[item.direction] || defaultDirectionProgress();
     const level = levelFromProgress(progress);
     const stage = adaptiveExerciseStageForLevel(level);
@@ -3361,9 +3461,8 @@ function adaptRemainingSessionExerciseTypes() {
       type = stage;
     }
     item.exerciseType = type;
-    item.options = type === 'mc'
-      ? buildOptions(vocabulary, vocab, item.direction, `${runtime.seed || 'session'}:adaptive-rebuild:${i}`, item.italianPrompt)
-      : null;
+    // Defer the costly full-dictionary distractor search until the question appears.
+    item.options = null;
   }
 }
 
@@ -3438,7 +3537,7 @@ function insertReplacementNewVocabulary(excludedVocab) {
     vocabulary,
     `${replacementSeed}:first`,
     source,
-    true
+    false
   );
   firstQuestion.replacementFor = excludedVocab.id;
   runtime.items.splice(insertAt, 0, learnItem, firstQuestion);
@@ -3454,7 +3553,7 @@ function insertReplacementNewVocabulary(excludedVocab) {
     vocabulary,
     `${replacementSeed}:second`,
     source,
-    true
+    false
   );
   secondQuestion.replacementFor = excludedVocab.id;
   const secondInsertAt = safeRetryInsertionIndex(runtime.items, insertAt + 1, replacement.id);
@@ -3482,7 +3581,11 @@ function renderSession() {
   if (!runtime || runtime.index >= runtime.items.length) return finishSession();
   const item = runtime.items[runtime.index];
   const vocab = byId(item.vocabularyId);
-  if (!vocab) { runtime.index++; return renderSession(); }
+  if (!vocab || !isActiveStudySense(vocab)) { runtime.index++; return renderSession(); }
+  if (item.type === 'question' && item.exerciseType === 'mc' && !feedback && !Array.isArray(item.options)) {
+    item.options = buildOptions(vocabulary, vocab, item.direction,
+      item.optionSeed || `${runtime.seed || 'session'}:deferred:${runtime.index}`, item.italianPrompt);
+  }
   const pos = questionPosition();
   const todayKey = localDateKey();
   const todayStudySeconds = completedStudySecondsForDate(state, todayKey) + liveRuntimeSecondsForDate(runtime, todayKey);
@@ -3706,9 +3809,9 @@ function submitAnswer(answer, forcedResult = null, gaveUp = false) {
       source: 'retry',
       retryCount,
       exerciseType: retryType,
-      options: retryType === 'mc'
-        ? buildOptions(vocabulary, vocab, item.direction, `${runtime.seed || 'session'}:retry-options:${item.vocabularyId}:${item.direction}:${retryCount}`, item.italianPrompt)
-        : null
+      // Retried questions are spaced out; prepare options only when shown.
+      optionSeed: `${runtime.seed || 'session'}:retry-options:${item.vocabularyId}:${item.direction}:${retryCount}`,
+      options: null
     };
     const insertAt = safeRetryInsertionIndex(runtime.items, runtime.index, item.vocabularyId);
     if (insertAt >= 0) runtime.items.splice(insertAt, 0, retry);

@@ -42,13 +42,14 @@
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(e=>console.warn('SW registration failed:',e));
     }
-    const paths=['./assets/data/vocabulary.json','./assets/data/learning-priority.json','./assets/data/legacy-compat.json'];
+    const paths=['./assets/data/vocabulary.json','./assets/data/learning-priority.json','./assets/data/legacy-compat.json','./assets/data/operational-eligibility.json'];
     const responses=await Promise.all(paths.map(p=>fetch(p,{cache:'default'})));
     if(responses.some(r=>!r.ok))throw new Error('Dati del dizionario non disponibili: apri una volta Kotoba online per completare l’installazione.');
     const data=await Promise.all(responses.map(r=>r.json()));
     window.__KOTOBA_VOCABULARY__=data[0];
     window.__KOTOBA_LEARNING_PRIORITY__=data[1];
     window.__KOTOBA_LEGACY_COMPAT__=data[2];
+    window.__KOTOBA_OPERATIONAL_ELIGIBILITY__=data[3];
     const script=document.createElement('script');script.src='./app.js';script.defer=true;
     script.onerror=()=>status('Impossibile avviare l’app. Verifica la connessione e ricarica la pagina.');
     document.body.appendChild(script);
