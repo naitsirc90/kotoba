@@ -18,7 +18,7 @@ if (KOTOBA_OPERATIONAL_HOLD_IDS.size !== 68 ||
 const isOperationallyHeldId = id => KOTOBA_OPERATIONAL_HOLD_IDS.has(id);
 const isOperationallyStudyable = vocab => Boolean(vocab && vocab.studyEnabled !== false && !isOperationallyHeldId(vocab.id));
 
-const KOTOBA_RELEASE = '3.1.14-m3-session-start-performance-pwa-QA';
+const KOTOBA_RELEASE = '3.1.15-m3-jisho-pwa';
 // Immutable, locally embedded priority index. This index does not change
 // SRS deadlines, selected topics, Study Level gates or saved progress.
 const KOTOBA_LEARNING_PRIORITY_SCORES = window.__KOTOBA_LEARNING_PRIORITY__?.scores || {};
@@ -132,7 +132,8 @@ const defaultState = () => ({
   sessions: [],
   activeSession: null,
   excludedVocabulary: {},
-  sensePriorityUnlocks: {}
+  sensePriorityUnlocks: {},
+  dictionaryPreferences: {senseByEntry:{}, translationBySense:{}}
 });
 
 function loadState() {
@@ -174,7 +175,8 @@ function loadState() {
       sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
       activeSession: parsed.activeSession && Array.isArray(parsed.activeSession.items) ? parsed.activeSession : null,
       excludedVocabulary: parsed.excludedVocabulary && typeof parsed.excludedVocabulary === 'object' ? parsed.excludedVocabulary : {},
-      sensePriorityUnlocks: parsed.sensePriorityUnlocks && typeof parsed.sensePriorityUnlocks === 'object' ? parsed.sensePriorityUnlocks : {}
+      sensePriorityUnlocks: parsed.sensePriorityUnlocks && typeof parsed.sensePriorityUnlocks === 'object' ? parsed.sensePriorityUnlocks : {},
+      dictionaryPreferences: parsed.dictionaryPreferences && typeof parsed.dictionaryPreferences === 'object' ? parsed.dictionaryPreferences : {senseByEntry:{},translationBySense:{}}
     };
   } catch {
     return defaultState();
@@ -2212,14 +2214,27 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', pauseSessionTimingForBackground);
 window.addEventListener('beforeunload', pauseSessionTimingForBackground);
 
+// Offline vector icons, included directly in the Android WebView and the PWA.
+// Every navigation icon uses the same 24x24, round-stroke visual language.
+const KOTOBA_NAV_ICONS = {
+  home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-7h6v7"/>',
+  jisho: '<path d="M12 7v14"/><path d="M3 18V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16a3 3 0 0 0-3-3H5a2 2 0 0 0-2 2Z"/><path d="M21 18V5a2 2 0 0 0-2-2h-5a2 2 0 0 0-2 2v16a3 3 0 0 1 3-3h4a2 2 0 0 1 2 2Z"/>',
+  progress: '<path d="M4 20h16"/><path d="M7 17v-5"/><path d="M12 17V9"/><path d="M17 17V5"/>',
+  kana: '<path d="M4 6h11"/><path d="M9 3v3"/><path d="M6 9a10 10 0 0 0 8 7"/><path d="M13 7a10 10 0 0 1-8 9"/><path d="m15 21 4-10 4 10"/><path d="M16.2 18h5.6"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06-2.04 2.04-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21h-2.9v-.87a1.7 1.7 0 0 0-1.02-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-2.04-2.04.06-.06A1.7 1.7 0 0 0 7.3 15 1.7 1.7 0 0 0 5.74 14H5v-2.9h.74A1.7 1.7 0 0 0 7.3 10a1.7 1.7 0 0 0-.34-1.87L6.9 8.07l2.04-2.04.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 11.9 4.9V4h2.9v.9a1.7 1.7 0 0 0 1.03 1.53 1.7 1.7 0 0 0 1.87-.34l.06-.06 2.04 2.04-.06.06a1.7 1.7 0 0 0-.34 1.87A1.7 1.7 0 0 0 20.96 11H22v3h-1.04A1.7 1.7 0 0 0 19.4 15Z"/>',
+  topics: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'
+};
+function navIcon(id) {
+  return `<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${KOTOBA_NAV_ICONS[id] || ''}</svg>`;
+}
 function nav(active) {
   if (['session', 'session-complete', 'kana-exercise', 'kana-complete', 'onboarding'].includes(view)) return '';
   const items = [
-    ['home', 'Home'], ['topics', 'Argomenti'], ['progress', 'Progressi'], ['kana', 'Kana'], ['settings', 'Impostazioni']
+    ['home', 'Home'], ['jisho', 'Jisho'], ['progress', 'Progressi'], ['kana', 'Kana'], ['settings', 'Impostazioni']
   ];
   return `<nav class="bottom-nav" aria-label="Navigazione principale">
-    ${items.map(([id, label]) => `<button class="nav-item ${active === id ? 'active' : ''}" data-nav="${id}">
-      <span class="nav-dot" aria-hidden="true"></span><span>${label}</span>
+    ${items.map(([id, label]) => `<button type="button" class="nav-item ${active === id ? 'active' : ''}" data-nav="${id}" ${active === id ? 'aria-current="page"' : ''}>
+      ${navIcon(id)}<span class="nav-label">${label}</span>
     </button>`).join('')}
   </nav>`;
 }
@@ -2233,7 +2248,7 @@ function shell(content, active = view) {
     capturedMainContent = content;
     return;
   }
-  if (['home', 'topics', 'progress', 'kana', 'settings'].includes(active)) {
+  if (['home', 'jisho', 'progress', 'kana', 'settings'].includes(active)) {
     mainViewContentCache.set(active, content);
   }
   document.body.classList.toggle('kotoba-exercise-viewport', active === 'session');
@@ -2255,7 +2270,7 @@ function renderResetDialog() {
   </div>`;
 }
 
-const MAIN_NAV_VIEWS = ['home', 'topics', 'progress', 'kana', 'settings'];
+const MAIN_NAV_VIEWS = ['home', 'jisho', 'progress', 'kana', 'settings'];
 const SWIPE_SETTLE_MS = 240;
 
 function captureMainViewContent(targetView, preferCache = true) {
@@ -2270,7 +2285,7 @@ function captureMainViewContent(targetView, preferCache = true) {
   view = targetView;
   try {
     if (targetView === 'home') renderHome();
-    else if (targetView === 'topics') renderTopics();
+    else if (targetView === 'jisho') renderJisho();
     else if (targetView === 'kana') renderKana();
     else if (targetView === 'progress') renderProgress();
     else if (targetView === 'settings') renderSettings();
@@ -2631,33 +2646,49 @@ function topicCard(topic, stats, selected, interactive = true) {
   </button>`;
 }
 
-function renderTopics() {
+// Topic selection now lives inside the collapsible Settings section. Reuses the
+// exact historical selectedTopics array, stable topic IDs and topicCard controls.
+function topicSettingsSummary() {
+  const selected = new Set(state.settings.selectedTopics || []);
+  const count = TOPICS.filter(topic => selected.has(topic.id)).length;
+  return `${count} di ${TOPICS.length} selezionati`;
+}
+function topicSettingsEditorHtml() {
   const stats = computeStats(vocabulary, state);
-  shell(`
-    <header class="page-header"><p class="eyebrow">STUDIO</p><h1>Argomenti</h1><p>Scegli più categorie: durante le sessioni verranno mescolate.</p></header>
-    <div class="toolbar">
-      <button class="text-btn" data-action="select-all">Seleziona tutti</button>
-      <button class="text-btn" data-action="deselect-all">Deseleziona tutti</button>
-    </div>
-    <section class="topic-list">
-      ${TOPICS.map(t => topicCard(t, stats, state.settings.selectedTopics.includes(t.id))).join('')}
-    </section>
-  `, 'topics');
-  if (captureMode) return;
-  document.querySelectorAll('[data-topic]').forEach(btn => btn.addEventListener('click', () => {
-    const id = btn.dataset.topic;
-    const set = new Set(state.settings.selectedTopics);
-    set.has(id) ? set.delete(id) : set.add(id);
-    state.settings.selectedTopics = [...set];
+  return `<div class="toolbar topic-settings-toolbar">
+    <button class="text-btn" type="button" data-action="select-all">Seleziona tutti</button>
+    <button class="text-btn" type="button" data-action="deselect-all">Deseleziona tutti</button>
+  </div>
+  <section class="topic-list" aria-label="Seleziona gli argomenti di studio">
+    ${TOPICS.map(topic => topicCard(topic, stats, (state.settings.selectedTopics || []).includes(topic.id))).join('')}
+  </section>`;
+}
+function refreshTopicSettingsEditor() {
+  const editor = document.querySelector('[data-settings-topics-editor]');
+  if (!editor || !editor.closest('[data-settings-section="topics"]')?.open) return;
+  editor.innerHTML = topicSettingsEditorHtml();
+  const summary = document.querySelector('[data-settings-topics-count]');
+  if (summary) summary.textContent = topicSettingsSummary();
+  function applyTopics(ids) {
+    state.settings.selectedTopics = ids;
     saveState(state);
-    renderTopics();
+    mainViewContentCache.clear(); // Home preview and eligibility depend on topics.
+    refreshTopicSettingsEditor(); // Preserve disclosure, scroll, focus context.
+  }
+  editor.querySelectorAll('[data-topic]').forEach(btn => btn.addEventListener('click', () => {
+    const id = btn.dataset.topic;
+    const selected = new Set(state.settings.selectedTopics || []);
+    if (selected.has(id)) selected.delete(id); else selected.add(id);
+    applyTopics([...selected]);
   }));
-  document.querySelector('[data-action="select-all"]').addEventListener('click', () => {
-    state.settings.selectedTopics = TOPICS.map(t => t.id); saveState(state); renderTopics();
-  });
-  document.querySelector('[data-action="deselect-all"]').addEventListener('click', () => {
-    state.settings.selectedTopics = []; saveState(state); renderTopics();
-  });
+  editor.querySelector('[data-action="select-all"]')?.addEventListener('click', () => applyTopics(TOPICS.map(topic => topic.id)));
+  editor.querySelector('[data-action="deselect-all"]')?.addEventListener('click', () => applyTopics([]));
+}
+function renderTopics() {
+  // Compatibility for any old deep-link/state routing to the former top-level view.
+  view = 'settings';
+  settingsOpenSection = 'topics';
+  return renderSettings();
 }
 
 function renderProgress() {
@@ -2877,6 +2908,11 @@ function kotobaMergeFinish(local,remote,option,localKana,remoteKana){
   }
   current.sensePriorityUnlocks={...(incoming.sensePriorityUnlocks||{}),...(current.sensePriorityUnlocks||{})};
   current.dataMigrations={...(incoming.dataMigrations||{}),...(current.dataMigrations||{})};
+  const localPrefs=current.dictionaryPreferences||{},remotePrefs=incoming.dictionaryPreferences||{};
+  current.dictionaryPreferences={
+    senseByEntry:{...((option==='prefer-file'?localPrefs:remotePrefs).senseByEntry||{}),...((option==='prefer-file'?remotePrefs:localPrefs).senseByEntry||{})},
+    translationBySense:{...((option==='prefer-file'?localPrefs:remotePrefs).translationBySense||{}),...((option==='prefer-file'?remotePrefs:localPrefs).translationBySense||{})}
+  };
   const hasLocalStudy=Object.values(local.progress||{}).some(v=>v&&v.introducedAt);
   if(!hasLocalStudy&&!(local.sessions||[]).length) current.settings=incoming.settings;
   if(!current.activeSession)current.activeSession=incoming.activeSession||null;
@@ -3040,6 +3076,13 @@ function renderSettings() {
           </details>
         </div>
       </details>
+      <details class="settings-disclosure" data-settings-section="topics" ${settingsOpenSection === 'topics' ? 'open' : ''}>
+        <summary><span><strong class="settings-topics-heading">${navIcon('topics')} Argomenti di studio</strong><small data-settings-topics-count>${topicSettingsSummary()}</small></span><span class="disclosure-arrow" aria-hidden="true">⌄</span></summary>
+        <div class="settings-disclosure-body">
+          <p class="field-help">Scegli le categorie da includere nello studio quotidiano e libero. Puoi selezionarne più di una: gli esercizi verranno mescolati.</p>
+          <div data-settings-topics-editor></div>
+        </div>
+      </details>
       <details class="settings-disclosure" data-settings-section="level" ${settingsOpenSection === 'level' ? 'open' : ''}>
         <summary><span><strong>Livello di studio</strong><small>${studyLevelChoiceLabel(setting.studyLevel)}</small></span><span class="disclosure-arrow" aria-hidden="true">⌄</span></summary>
         <div class="settings-disclosure-body">
@@ -3087,8 +3130,10 @@ function renderSettings() {
     if (el.open) {
       settingsOpenSection = el.dataset.settingsSection;
       document.querySelectorAll('[data-settings-section]').forEach(other => {if (other !== el && other.open) other.open = false;});
+      if (el.dataset.settingsSection === 'topics') refreshTopicSettingsEditor();
     } else if (settingsOpenSection === el.dataset.settingsSection) settingsOpenSection = null;
   }));
+  if (settingsOpenSection === 'topics') refreshTopicSettingsEditor();
   bindTransferSettings();
   document.querySelector('[data-settings-advanced]')?.addEventListener('toggle', e => {
     advancedDailyOpen = e.target.open;
@@ -3276,7 +3321,7 @@ function persistActiveSession(checkpoint = false) {
 function startSessionCheckpointing() {
   if (sessionCheckpointTimer) clearInterval(sessionCheckpointTimer);
   sessionCheckpointTimer = setInterval(() => {
-    if (!runtime || view !== 'session' || document.visibilityState === 'hidden') return;
+    if (!runtime || view !== 'session' || jishoModalOpen || document.visibilityState === 'hidden') return;
     const nowMs = Date.now();
     checkpointStudyTime(nowMs);
     checkpointAnswerTime(nowMs);
@@ -3300,7 +3345,7 @@ function pauseSessionTimingForBackground() {
 }
 
 function resumeSessionTimingIfVisible() {
-  if (!runtime || view !== 'session' || document.visibilityState === 'hidden') return;
+  if (!runtime || view !== 'session' || jishoModalOpen || document.visibilityState === 'hidden') return;
   const nowMs = Date.now();
   runtime.timingActive = true;
   runtime.lastActiveTickAt = nowMs;
@@ -3610,7 +3655,7 @@ function renderSession() {
       ${prerequisiteNote}
       <div class="jp-hero">${vocab.japanese}</div>
       ${containsKanji(vocab.japanese) ? `<div class="kana">${escapeHtml(displayReading(vocab))}</div>` : (vocab.kana ? `<div class="kana">${escapeHtml(displayReading(vocab))}</div>` : '')}
-      <div class="meaning">${escapeHtml(vocab.italian.join(' · '))}</div>
+      <div class="meaning">${escapeHtml(jishoDisplayMeaning(vocab))}</div>
       <div class="learn-meta-row"><span class="jlpt-badge">${escapeHtml(`${studyLevelLabel(vocab.studyLevel)} · ${studyLevelReference(vocab.studyLevel)}`)}</span><span>${escapeHtml(topicLabel(vocab.topics.find(t => state.settings.selectedTopics.includes(t)) || vocab.topics.find(t => t !== 'freedict_completo') || vocab.topics[0]))}</span>${usageRegisterBadgeHtml(vocab)}</div>
       ${vocab.senseLabelItalian || vocab.senseNoteItalian ? `<div class="sense-box">${vocab.senseLabelItalian ? `<p class="sense-label">${escapeHtml(vocab.senseLabelItalian)}</p>` : ''}${vocab.senseNoteItalian ? `<p class="sense-note">${escapeHtml(vocab.senseNoteItalian)}</p>` : ''}</div>` : ''}
       ${usageRegisterNoteHtml(vocab)}
@@ -3638,9 +3683,10 @@ function renderSession() {
       ${feedback.result !== 'correct' ? `<p class="correct-answer-label">Risposta corretta</p>` : ''}
       <div class="jp-feedback">${vocab.japanese}</div>
       ${vocab.kana ? `<div class="kana">${escapeHtml(displayReading(vocab))}</div>` : ''}
-      <div class="meaning">${escapeHtml(vocab.italian.join(' · '))}</div>
+      <div class="meaning">${escapeHtml(jishoDisplayMeaning(vocab))}</div>
       ${usageRegisterFeedbackHtml(vocab)}
       ${feedback.validOtherSense ? '<p class="field-help">La tua risposta è valida per un’altra parola o accezione. Il livello della scheda richiesta non viene modificato.</p>' : ''}
+      ${feedback.jishoAssisted ? '<p class="field-help">Hai consultato Jisho: questa risposta non modifica la padronanza SRS.</p>' : ''}
       ${extraItalianLabel ? `<p class="field-help">Altre traduzioni accettate per questa forma: ${escapeHtml(extraItalianLabel)}</p>` : ''}
       <button class="btn primary wide" data-action="question-continue">Continua</button>
     </section>`;
@@ -3667,9 +3713,11 @@ function renderSession() {
       <div class="session-progress"><i style="width:${pos.total ? Math.min(100, pos.current / pos.total * 100) : 0}%"></i></div>
     </header>
     ${content}
+    <button class="btn secondary wide jisho-study-button" type="button" data-action="open-jisho">Jisho · Consulta questa parola</button>
     ${freeFinishDialogHtml()}
   `, 'session');
 
+  document.querySelector('[data-action="open-jisho"]')?.addEventListener('click',()=>jishoOpenFromStudy(vocab));
   document.querySelector('[data-action="pause-session"]')?.addEventListener('click', pauseCurrentSession);
   document.querySelector('[data-action="finish-free-early"]')?.addEventListener('click', () => {
     freeFinishDialogOpen = true;
@@ -3761,7 +3809,7 @@ function submitAnswer(answer, forcedResult = null, gaveUp = false) {
   // If the learner answered a *different* sense of an ambiguous bare
   // Japanese prompt, the response is valid but does not prove mastery of the
   // selected sense. Do not create or inflate an unrelated SRS progress record.
-  const srsCredited = !checked.validOtherSense;
+  const srsCredited = !checked.validOtherSense && !item.jishoConsulted;
   const beforeProgress = state.progress?.[vocab.id]?.[item.direction] || defaultDirectionProgress();
   const updated = srsCredited ? updateDirectionProgress(beforeProgress, {
     result: checked.result,
@@ -3785,6 +3833,7 @@ function submitAnswer(answer, forcedResult = null, gaveUp = false) {
     result: checked.result,
     gaveUp: Boolean(gaveUp),
     srsCredited,
+    jishoAssisted: Boolean(item.jishoConsulted),
     validOtherSense: Boolean(checked.validOtherSense),
     sessionMode: runtime?.mode || 'daily',
     source: item.source || null,
@@ -3809,6 +3858,7 @@ function submitAnswer(answer, forcedResult = null, gaveUp = false) {
       source: 'retry',
       retryCount,
       exerciseType: retryType,
+      jishoConsulted: false,
       // Retried questions are spaced out; prepare options only when shown.
       optionSeed: `${runtime.seed || 'session'}:retry-options:${item.vocabularyId}:${item.direction}:${retryCount}`,
       options: null
@@ -3818,7 +3868,8 @@ function submitAnswer(answer, forcedResult = null, gaveUp = false) {
   }
 
   feedback = { result: checked.result, answer: String(answer),
-    validOtherSense: Boolean(checked.validOtherSense) };
+    validOtherSense: Boolean(checked.validOtherSense),
+    jishoAssisted: Boolean(item.jishoConsulted) };
   persistActiveSession();
   renderSession();
 }
@@ -4168,6 +4219,213 @@ window.visualViewport?.addEventListener('resize', kotobaScheduleVisibleAnswer);
 window.visualViewport?.addEventListener('scroll', kotobaScheduleVisibleAnswer);
 window.addEventListener('resize', kotobaScheduleVisibleAnswer);
 
+/* Jisho private QA 3.1.15. Reuses stable released sense IDs; no new network. */
+let jishoQuery = '';
+let jishoCurrentEntry = null;
+let jishoModalOpen = false;
+let jishoFocusReturn = null;
+const jishoEntries = new Map();
+const jishoSearchIndex = new Map();
+const jishoUnresolved = new Set(KOTOBA_OPERATIONAL_ELIGIBILITY.unresolvedOP5CIds);
+const jishoNormalize = value => String(value ?? '').normalize('NFKC').trim().toLocaleLowerCase('it-IT').replace(/\s+/g,' ');
+const jishoEntryId = vocab => String(vocab.jmdictEntryId || vocab.id.replace(/-\d+$/,''));
+const jishoRank = sense => Number(sense.senseRankWithinEntry || sense.jmdictSenseIndex || 999);
+function jishoPosLabel(raw){
+  const s=String(raw||'').toLowerCase();
+  if(s.includes('adjective (keiyoushi)'))return 'Aggettivo in -い';
+  if(s.includes('adjectival nouns')||s.includes('adjective (keiyodoshi)'))return 'Aggettivo in -な';
+  if(s.includes('godan verb'))return 'Verbo godan';
+  if(s.includes('ichidan verb'))return 'Verbo ichidan';
+  if(s.includes('suru verb'))return 'Verbo con する';
+  if(s.includes('verb'))return 'Verbo';
+  if(s.includes('adverb'))return 'Avverbio';
+  if(s.includes('noun'))return 'Sostantivo';
+  if(s.includes('expression'))return 'Espressione';
+  if(s.includes('particle'))return 'Particella';
+  if(s.includes('prefix'))return 'Prefisso';
+  if(s.includes('suffix'))return 'Suffisso';
+  if(s.includes('counter'))return 'Classificatore';
+  if(s.includes('interjection'))return 'Interiezione';
+  return 'Categoria non classificata';
+}
+function jishoPreferences(){
+  if(!state.dictionaryPreferences || typeof state.dictionaryPreferences !== 'object') state.dictionaryPreferences={};
+  const p=state.dictionaryPreferences;
+  if(!p.senseByEntry || typeof p.senseByEntry !== 'object')p.senseByEntry={};
+  if(!p.translationBySense || typeof p.translationBySense !== 'object')p.translationBySense={};
+  return p;
+}
+function jishoTranslationCandidates(vocab){
+  return [...new Set([...(vocab.italian||[]),...(vocab.alternativeItalian||[])].map(x=>String(x).trim()).filter(Boolean))];
+}
+function jishoPreferredTranslation(vocab){
+  const all=jishoTranslationCandidates(vocab);
+  const chosen=jishoPreferences().translationBySense[vocab.id];
+  if(chosen && all.includes(chosen))return [chosen,...all.filter(x=>x!==chosen)];
+  return all;
+}
+function jishoDisplayMeaning(vocab){return jishoPreferredTranslation(vocab).join(' · ');}
+function jishoSortSenses(entryId){
+  const senses=(jishoEntries.get(entryId)||[]).slice();
+  const pref=jishoPreferences().senseByEntry[entryId];
+  return senses.sort((a,b)=>(a.id===pref?-1:b.id===pref?1:0) || jishoRank(a)-jishoRank(b) || a.id.localeCompare(b.id));
+}
+function jishoRebuildIndex(){
+  jishoEntries.clear();
+  jishoSearchIndex.clear();
+  for(const vocab of vocabulary){
+    // Do not present linguistically unresolved OP5C records as validated meanings.
+    if(jishoUnresolved.has(vocab.id) || vocab.mergedIntoSenseId)continue;
+    const id=jishoEntryId(vocab);
+    if(!jishoEntries.has(id))jishoEntries.set(id,[]);
+    jishoEntries.get(id).push(vocab);
+  }
+  for(const [id,arr] of jishoEntries){
+    arr.sort((a,b)=>jishoRank(a)-jishoRank(b));
+    jishoSearchIndex.set(id,{
+      japanese:[...new Set(arr.flatMap(v=>[v.japanese,v.kana,...(v.alternativeJapanese||[])]).map(jishoNormalize).filter(Boolean))],
+      italian:[...new Set(arr.flatMap(jishoTranslationCandidates).map(jishoNormalize).filter(Boolean))]
+    });
+  }
+}
+function jishoSearch(text,limit=60){
+  const q=jishoNormalize(text);
+  if(!q || (q.length<2 && !/[\u3040-\u30ff\u3400-\u9fff]/.test(q)))return [];
+  const matches=[];
+  for(const [entryId,senses] of jishoEntries){
+    let best=Infinity;
+    const terms=jishoSearchIndex.get(entryId);
+    for(const n of terms.japanese){
+      if(n===q)best=Math.min(best,0);
+      else if(n.startsWith(q))best=Math.min(best,2);
+      else if(n.includes(q))best=Math.min(best,5);
+    }
+    for(const n of terms.italian){
+      if(n===q)best=Math.min(best,0);
+      else if(n.startsWith(q))best=Math.min(best,3);
+      else if(n.includes(q))best=Math.min(best,7);
+    }
+    if(Number.isFinite(best)){
+      const primary=senses[0];
+      const studyPriority=primary.studyLevel==='ESSENTIAL' ? 0 : primary.studyLevel==='BASIC' ? 1 : 2;
+      matches.push({entryId,score:best,priority:studyPriority,rank:Math.min(...senses.map(jishoRank)),title:primary.japanese});
+    }
+  }
+  matches.sort((a,b)=>a.score-b.score || a.priority-b.priority || a.rank-b.rank || a.title.localeCompare(b.title,'ja'));
+  return matches.slice(0,limit);
+}
+function jishoResultsHtml(){
+  const q=jishoQuery.trim();
+  if(!q)return `<section class="panel jisho-welcome"><p>Consulta le parole in <strong>italiano</strong> o in <strong>giapponese</strong>, anche in hiragana e katakana. I risultati includono tutte le accezioni autorizzate presenti nell'app.</p><p class="field-help">Prova: <button class="jisho-suggest" type="button" data-jisho-suggest="alto">alto</button> <button class="jisho-suggest" type="button" data-jisho-suggest="高い">高い</button> <button class="jisho-suggest" type="button" data-jisho-suggest="たべる">たべる</button></p></section>`;
+  const matches=jishoSearch(q);
+  if(!matches.length)return `<p class="notice" role="status">Nessun risultato${q.length===1&&!/[\u3040-\u30ff\u3400-\u9fff]/.test(q)?' — inserisci almeno due caratteri':''}. Prova una forma base, un sinonimo o una lettura.</p>`;
+  return `<p class="jisho-results-caption" role="status">${matches.length}${matches.length===60?'+':''} risultati · in ordine di pertinenza, non di frequenza statistica</p><div class="jisho-results">${matches.map(m=>{
+    const arr=jishoSortSenses(m.entryId),first=arr[0];
+    const labels=[...new Set(arr.flatMap(v=>jishoPreferredTranslation(v)).filter(Boolean))].slice(0,3);
+    const passive=arr.every(v=>!isOperationallyStudyable(v));
+    return `<button type="button" class="jisho-result" data-jisho-open="${escapeHtml(m.entryId)}"><span class="jisho-result-jp" lang="ja">${escapeHtml(first.japanese)}</span><span class="jisho-result-reading" lang="ja">${escapeHtml(first.kana)}</span><span class="jisho-result-it">${escapeHtml(labels.join(' · '))}</span><small>${arr.length} ${arr.length===1?'accezione':'accezioni'}${passive?' · solo consultazione':''}</small></button>`;
+  }).join('')}</div>`;
+}
+function jishoEntryHtml(entryId,mode='main'){
+  const senses=jishoSortSenses(entryId);
+  if(!senses.length)return '<p class="notice">Voce non disponibile nel dizionario.</p>';
+  const first=senses[0],preferredSense=jishoPreferences().senseByEntry[entryId];
+  return `<div class="jisho-entry">
+    <header class="jisho-entry-header"><div><h2 lang="ja">${escapeHtml(first.japanese)}</h2><p lang="ja">${escapeHtml(first.kana)}</p></div><span class="jisho-sense-count">${senses.length} ${senses.length===1?'accezione':'accezioni'}</span></header>
+    <p class="field-help">Accezioni in ordine lessicografico predefinito. La stella permette di scegliere quale visualizzare per prima, solo sul tuo dispositivo.</p>
+    ${senses.map((v,i)=>{
+      const candidates=jishoTranslationCandidates(v), chosen=jishoPreferredTranslation(v)[0], isSelected=preferredSense===v.id;
+      const passive=!isOperationallyStudyable(v);
+      return `<article class="jisho-sense ${isSelected?'jisho-sense-preferred':''}" id="jisho-sense-${escapeHtml(v.id)}">
+      <div class="jisho-sense-head"><span class="jisho-num">${i+1}.</span><strong>${escapeHtml(chosen||'Traduzione non disponibile')}</strong><button type="button" class="jisho-star" data-jisho-prefer-sense="${escapeHtml(v.id)}" aria-pressed="${isSelected}" aria-label="${isSelected?'Rimuovi preferenza':'Mostra questa accezione per prima'}">${isSelected?'★':'☆'}</button></div>
+      <div class="jisho-sense-meta">${escapeHtml(jishoPosLabel(v.partOfSpeech))}${v.studyLevel ? ' · '+escapeHtml(studyLevelLabel(v.studyLevel)) : ''}${passive ? ' · Solo consultazione' : ''}</div>
+      ${v.senseNoteItalian ? `<p class="jisho-note">${escapeHtml(v.senseNoteItalian)}</p>` : ''}
+      ${candidates.length>1 ? `<div class="jisho-translations" role="group" aria-label="Traduzione preferita">${candidates.map((t,k)=>`<button type="button" data-jisho-prefer-tr="${escapeHtml(v.id)}" data-jisho-tr-index="${k}" class="jisho-translation ${t===chosen?'selected':''}" aria-pressed="${t===chosen}">${escapeHtml(t)}${t===chosen?' ★':''}</button>`).join('')}</div>` : ''}
+      ${v.exampleJapanese&&v.exampleItalian ? `<div class="jisho-example"><p lang="ja">${escapeHtml(v.exampleJapanese)}</p><p>${escapeHtml(v.exampleItalian)}</p></div>` : ''}
+      </article>`;
+    }).join('')}
+  </div>`;
+}
+function jishoBindActions(container,overlay=false){
+  container.querySelectorAll('[data-jisho-open]').forEach(el=>el.addEventListener('click',()=>{
+    jishoCurrentEntry=el.dataset.jishoOpen;
+    renderJisho();
+  }));
+  container.querySelectorAll('[data-jisho-suggest]').forEach(el=>el.addEventListener('click',()=>{
+    jishoQuery=el.dataset.jishoSuggest;
+    jishoCurrentEntry=null;
+    renderJisho();
+    document.querySelector('#jisho-query')?.focus();
+  }));
+  container.querySelectorAll('[data-jisho-prefer-sense]').forEach(el=>el.addEventListener('click',()=>{
+    const id=el.dataset.jishoPreferSense;
+    const vocab=embeddedVocabularyById.get(id);
+    if(!vocab||jishoUnresolved.has(id))return;
+    const entryId=jishoEntryId(vocab),p=jishoPreferences();
+    if(p.senseByEntry[entryId]===id)delete p.senseByEntry[entryId];else p.senseByEntry[entryId]=id;
+    saveState(state);
+    if(overlay)jishoShowModal(entryId);else renderJisho();
+  }));
+  container.querySelectorAll('[data-jisho-prefer-tr]').forEach(el=>el.addEventListener('click',()=>{
+    const id=el.dataset.jishoPreferTr, vocab=embeddedVocabularyById.get(id);
+    if(!vocab||jishoUnresolved.has(id))return;
+    const choices=jishoTranslationCandidates(vocab),idx=Number(el.dataset.jishoTrIndex),choice=choices[idx];
+    if(!choice)return;
+    const p=jishoPreferences();
+    if(p.translationBySense[id]===choice)delete p.translationBySense[id];else p.translationBySense[id]=choice;
+    saveState(state);
+    if(overlay)jishoShowModal(jishoEntryId(vocab));else renderJisho();
+  }));
+}
+function renderJisho(){
+  const detail=jishoCurrentEntry ? jishoEntryHtml(jishoCurrentEntry) : jishoResultsHtml();
+  shell(`<header class="page-header jisho-page-header"><p class="eyebrow">DIZIONARIO OFFLINE</p><h1>Jisho <span lang="ja">辞書</span></h1><p class="field-help">Cerca parole, letture e significati in italiano o giapponese.</p></header>
+    <div class="jisho-search"><label class="field-label" for="jisho-query">Cerca nel dizionario</label><input id="jisho-query" class="answer-input" type="search" placeholder="Es. alto, 高い, たかい" value="${escapeHtml(jishoQuery)}" autocomplete="off" spellcheck="false" enterkeyhint="search"></div>
+    ${jishoCurrentEntry ? `<button type="button" class="jisho-back" data-jisho-back>← Torna ai risultati</button>` : ''}
+    <section id="jisho-content">${detail}</section>
+    <p class="jisho-footer">Le priorità sono indicative. Le accezioni editorialmente irrisolte restano escluse. Le preferenze personali non modificano il database né i progressi SRS.</p>
+    `,'jisho');
+  if(captureMode)return;
+  const input=document.querySelector('#jisho-query');
+  input?.addEventListener('input',()=>{
+    jishoQuery=input.value;
+    jishoCurrentEntry=null;
+    const content=document.querySelector('#jisho-content');
+    if(content){content.innerHTML=jishoResultsHtml();jishoBindActions(content);}
+  });
+  document.querySelector('[data-jisho-back]')?.addEventListener('click',()=>{jishoCurrentEntry=null;renderJisho();});
+  jishoBindActions(document.querySelector('#jisho-content'));
+}
+function jishoShowModal(entryId){
+  if(!jishoEntries.has(entryId))return;
+  document.querySelector('.jisho-modal-backdrop')?.remove();
+  const shellEl=document.querySelector('.app-shell');
+  if(!shellEl)return;
+  const modal=document.createElement('div');modal.className='jisho-modal-backdrop';
+  modal.innerHTML=`<section class="jisho-modal" role="dialog" aria-modal="true" aria-labelledby="jisho-dialog-title"><header><h2 id="jisho-dialog-title">Jisho · Consulta la parola</h2><button class="jisho-close" type="button" data-jisho-close aria-label="Torna allo studio">Chiudi ×</button></header>${jishoEntryHtml(entryId,'overlay')}</section>`;
+  shellEl.appendChild(modal);
+  modal.querySelector('[data-jisho-close]')?.addEventListener('click',jishoCloseModal);
+  modal.addEventListener('click',event=>{if(event.target===modal)jishoCloseModal();});
+  jishoBindActions(modal,true);
+  modal.querySelector('[data-jisho-close]')?.focus();
+}
+function jishoOpenFromStudy(vocab){
+  if(!vocab||!jishoEntries.has(jishoEntryId(vocab)) || jishoModalOpen)return;
+  jishoFocusReturn=document.activeElement;
+  pauseSessionTimingForBackground();
+  const item=runtime?.items?.[runtime.index];
+  if(item?.type==='question' && !feedback){item.jishoConsulted=true;persistActiveSession();}
+  jishoModalOpen=true;
+  jishoShowModal(jishoEntryId(vocab));
+}
+function jishoCloseModal(){
+  document.querySelector('.jisho-modal-backdrop')?.remove();
+  jishoModalOpen=false;
+  resumeSessionTimingIfVisible();
+  if(jishoFocusReturn?.isConnected)jishoFocusReturn.focus();
+  jishoFocusReturn=null;
+}
+
 function render() {
   document.body.classList.toggle('kotoba-exercise-viewport', view === 'session' || view === 'kana-exercise');
   if (!['session', 'kana-exercise'].includes(view)) kotobaFitVisibleAnswer();
@@ -4175,6 +4433,7 @@ function render() {
   switch (view) {
     case 'onboarding': return renderOnboarding();
     case 'topics': return renderTopics();
+    case 'jisho': return renderJisho();
     case 'kana': return renderKana();
     case 'kana-exercise': return renderKanaExercise();
     case 'kana-complete': return renderKanaComplete();
@@ -4192,6 +4451,7 @@ function init() {
   kanaRuntime = restoreKanaRuntime(kanaState.activeSession);
   vocabulary = EMBEDDED_VOCABULARY.entries || [];
   rebuildAnswerEquivalenceIndexes(vocabulary);
+  jishoRebuildIndex();
   observedDayKey = localDateKey();
   scheduleMidnightRefresh();
   startSessionCheckpointing();

@@ -539,3 +539,65 @@ body.kotoba-exercise-viewport.kotoba-keyboard-active .answer-input {
 .onboarding {flex-direction: column;align-items:stretch;justify-content:center;}
 .onboarding .onboarding-copy {width:100%;}
 .onboarding-exit {align-self:flex-start; margin: 0 0 22px;}
+
+
+/* Kotoba 3.1.15 private Jisho UX, shared by offline PWA and Android sources. */
+/* Jisho navigation V2: five clear tabs, with offline SVG icons. */
+.bottom-nav { grid-template-columns: repeat(5, minmax(0,1fr)); padding-left: calc(8px + env(safe-area-inset-left,0px)); padding-right: calc(8px + env(safe-area-inset-right,0px)); }
+.bottom-nav .nav-item { min-width:0; min-height:62px; gap:4px; font-size:clamp(9px,2.7vw,11px); letter-spacing:-.02em; padding:0 1px; }
+.bottom-nav .nav-icon { width:23px; height:23px; flex:0 0 23px; display:block; }
+.bottom-nav .nav-item.active .nav-icon { stroke-width:2.3; }
+.bottom-nav .nav-item .nav-label { white-space:nowrap; }
+.bottom-nav .nav-item:focus-visible {outline:2px solid var(--primary);outline-offset:-2px;border-radius:10px;}
+.settings-topics-heading {display:flex !important;align-items:center;gap:9px;}
+.settings-topics-heading .nav-icon { width:19px;height:19px;flex:0 0 19px;stroke:var(--primary); }
+.settings-disclosure-body .topic-settings-toolbar {display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin:0 0 14px;}
+.settings-disclosure-body .topic-list {display:grid;gap:9px;}
+.settings-disclosure-body .topic-card {padding:12px 13px;grid-template-columns:minmax(0,1fr) 94px;gap:9px;}
+.settings-disclosure-body .topic-card strong {font-size:14px;}
+@media (max-width:365px) {.bottom-nav .nav-item {font-size:9px;}}
+@media (min-width:980px) {body.kotoba-web .bottom-nav .nav-item {font-size:14px;}}
+
+.jisho-page-header { padding-bottom: 12px; }
+.jisho-page-header h1 span { font-size: .68em; color: var(--muted); font-weight: 600; }
+.jisho-search { margin: 0 0 14px; }
+.jisho-search .field-label { font-size:12px; color:var(--muted); }
+.jisho-search .answer-input { width:100%; background:white; }
+.jisho-welcome p { line-height:1.55; }
+.jisho-suggest { border:1px solid var(--line); border-radius:20px; background:var(--surface-2); margin:0 3px 3px 0; padding:7px 12px; color:var(--primary); font-weight:750; cursor:pointer; }
+.jisho-results-caption { font-size:12px; color:var(--muted); padding:8px 2px 4px; }
+.jisho-results { display:grid; gap:9px; margin: 4px 0 16px; }
+.jisho-result { text-align:left; cursor:pointer; display:grid; grid-template-columns:minmax(0,1fr); gap:2px; width:100%; padding:14px 16px; border:1px solid var(--line); border-radius:15px; background:var(--surface); color:var(--text); box-shadow:var(--shadow); }
+.jisho-result-jp { font-size:24px; line-height:1.35; font-weight:780; }
+.jisho-result-reading { font-size:13px; color:var(--muted); }
+.jisho-result-it { font-size:15px; font-weight:650; overflow-wrap:anywhere; margin-top:4px; }
+.jisho-result small { font-size:11px; color:var(--muted); }
+.jisho-back { margin:0 0 14px; border:0; background:transparent; color:var(--primary); font-weight:800; padding:10px 0; cursor:pointer; }
+.jisho-entry { display:grid; gap:12px; padding-bottom:8px; }
+.jisho-entry-header { display:flex; gap:12px; align-items:flex-start; justify-content:space-between; padding:12px 1px 10px; border-bottom:1px solid var(--line); }
+.jisho-entry-header h2 { font-size:32px; line-height:1.2; margin:0 0 4px; }
+.jisho-entry-header p { margin:0; color:var(--muted); font-size:18px; }
+.jisho-sense-count { flex-shrink:0; font-size:11px; background:var(--primary-soft); color:var(--primary); border-radius:16px; padding:6px 10px; }
+.jisho-sense { padding:16px 15px; border:1px solid var(--line); border-radius:16px; background:var(--surface); }
+.jisho-sense-preferred { border-color:var(--primary); box-shadow:0 0 0 1px var(--primary); }
+.jisho-sense-head { display:flex; gap:8px; align-items:center; }
+.jisho-sense-head strong { font-size:18px; flex:1; min-width:0; overflow-wrap:anywhere; }
+.jisho-num { font-size:15px; color:var(--muted); font-weight:800; }
+.jisho-star { font-size:24px; border:0; background:transparent; cursor:pointer; min-width:42px; min-height:42px; color:var(--primary); }
+.jisho-sense-meta { font-size:11px; color:var(--muted); margin:3px 0 9px; line-height:1.4; }
+.jisho-translations { display:flex; flex-wrap:wrap; gap:6px; margin:11px 0; }
+.jisho-translation { border:1px solid var(--line); background:var(--surface-2); border-radius:12px; color:var(--text); min-height:34px; padding:5px 10px; font-size:12px; cursor:pointer; }
+.jisho-translation.selected { border-color:var(--primary); background:var(--primary-soft); color:var(--primary); font-weight:800; }
+.jisho-note { font-size:13px; margin:0 0 7px; }
+.jisho-example { border-left:3px solid #91a79a; background:var(--surface-2); border-radius:0 10px 10px 0; padding:10px 12px; margin-top:12px; }
+.jisho-example p { margin:2px 0; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+.jisho-example p[lang="ja"] { font-size:15px; }
+.jisho-footer { font-size:11px; color:var(--muted); line-height:1.45; margin:18px 0 24px; }
+.jisho-study-button { margin:16px 0 30px; min-height:44px; border:1px solid var(--line); }
+.jisho-modal-backdrop { position:fixed; inset:0; z-index:120; background:rgba(19,27,24,.52); display:grid; place-items:center; padding:12px; }
+.jisho-modal { width:min(560px,100%); max-height:calc(100dvh - 24px); overflow:auto; overscroll-behavior:contain; background:var(--bg); border-radius:20px; padding:16px; box-shadow:0 16px 50px rgba(0,0,0,.3); }
+.jisho-modal>header { display:flex; gap:10px; align-items:center; justify-content:space-between; margin:0 0 8px; }
+.jisho-modal>header h2 { font-size:17px; margin:0; }
+.jisho-close { border:1px solid var(--line); border-radius:10px; min-height:39px; background:white; color:var(--primary); font-weight:800; padding:6px 10px; cursor:pointer; }
+@media (max-width:365px) { .bottom-nav .nav-item { font-size:9px; } .jisho-entry-header { flex-wrap:wrap; } }
+@media (min-width:980px) { body.kotoba-web .bottom-nav .nav-item { font-size:14px; } }

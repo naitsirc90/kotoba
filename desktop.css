@@ -67,8 +67,8 @@
   }
   body.kotoba-web .bottom-nav .nav-item:hover,
   body.kotoba-web .bottom-nav .nav-item.active { background: var(--primary-soft); }
-  body.kotoba-web .bottom-nav .nav-dot { width: 7px; height: 7px; flex-shrink: 0; border-radius: 999px; }
-  body.kotoba-web .bottom-nav .nav-item.active .nav-dot { background: var(--primary); }
+  body.kotoba-web .bottom-nav .nav-icon { width:22px; height:22px; flex:0 0 22px; }
+
   body.kotoba-web .screen-home {
     display: grid;
     grid-template-columns: minmax(0, 1.05fr) minmax(265px, .95fr);
