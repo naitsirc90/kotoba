@@ -18,7 +18,7 @@ if (KOTOBA_OPERATIONAL_HOLD_IDS.size !== 68 ||
 const isOperationallyHeldId = id => KOTOBA_OPERATIONAL_HOLD_IDS.has(id);
 const isOperationallyStudyable = vocab => Boolean(vocab && vocab.studyEnabled !== false && !isOperationallyHeldId(vocab.id));
 
-const KOTOBA_RELEASE = '3.1.15-m3-jisho-pwa';
+const KOTOBA_RELEASE = '3.1.16-preferred-answers-qa';
 // Immutable, locally embedded priority index. This index does not change
 // SRS deadlines, selected topics, Study Level gates or saved progress.
 const KOTOBA_LEARNING_PRIORITY_SCORES = window.__KOTOBA_LEARNING_PRIORITY__?.scores || {};
@@ -561,7 +561,7 @@ function migrateEquivalentVocabularyState(inputState) {
 }
 
 function answerProgressDelta(answer) {
-  if (!answer) return 0;
+  if (!answer || answer.srsCredited === false) return 0;
   if (answer.result === 'correct') return answer.exerciseType === 'free' ? 12 : 8;
   if (answer.result === 'almost') return 3;
   return answer.result === 'wrong' ? -15 : 0;
@@ -600,7 +600,7 @@ function migrateIndependentDailyReviewSchedule(state) {
       const p = vp[direction] || defaultDirectionProgress();
       if (p.dailyNextReviewAt || p.dailyLastReviewedAt) continue;
       const relevant = answers
-        .filter(a => a.vocabularyId === vocabularyId && a.direction === direction && a.timestamp)
+        .filter(a => a.vocabularyId === vocabularyId && a.direction === direction && a.timestamp && a.srsCredited !== false)
         .map(a => ({ ...a, inferredMode: a.sessionMode || sessionModeAtTimestamp(state, a.timestamp) }))
         .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       let dailyIndex = -1;
@@ -975,14 +975,18 @@ function fuzzyAlmostRomaji(answer, candidates) {
 
 let italianPromptJapaneseAnswers = new Map();
 let italianPromptRomajiAnswers = new Map();
+let italianPromptSenseEntries = new Map();
 let japaneseSurfaceReadings = new Map();
 let japaneseSurfaceReadingItalianAnswers = new Map();
+let japaneseFormReadingItalianSenseEntries = new Map();
 
 function rebuildAnswerEquivalenceIndexes(entries) {
   italianPromptJapaneseAnswers = new Map();
   italianPromptRomajiAnswers = new Map();
+  italianPromptSenseEntries = new Map();
   japaneseSurfaceReadings = new Map();
   japaneseSurfaceReadingItalianAnswers = new Map();
+  japaneseFormReadingItalianSenseEntries = new Map();
   const addMany = (map, key, values) => {
     if (!key) return;
     if (!map.has(key)) map.set(key, new Set());
@@ -990,9 +994,15 @@ function rebuildAnswerEquivalenceIndexes(entries) {
     values.filter(Boolean).forEach(v => set.add(v));
   };
   for (const entry of entries) {
+    // Index only the studyable, non-aliased, already approved sense records.
+    // Each listed Italian gloss belongs to this *sense*; no inferred synonyms.
     if (!isOperationallyStudyable(entry) || entry.aliasOf || entry.mergedIntoSenseId || !entry.japanese || !(entry.italian || []).length) continue;
+    const italianGlosses = [...(entry.italian || []), ...(entry.alternativeItalian || [])].filter(Boolean);
     const japaneseReadingKey = normalizeJapanese(entry.japanese) + '\x1f' + normalizeJapanese(entry.kana || displayReading(entry));
-    addMany(japaneseSurfaceReadingItalianAnswers, japaneseReadingKey, [...(entry.italian || []), ...(entry.alternativeItalian || [])]);
+    addMany(japaneseSurfaceReadingItalianAnswers, japaneseReadingKey, italianGlosses);
+    if (!japaneseFormReadingItalianSenseEntries.has(japaneseReadingKey)) japaneseFormReadingItalianSenseEntries.set(japaneseReadingKey, new Map());
+    const italianToSense = japaneseFormReadingItalianSenseEntries.get(japaneseReadingKey);
+    for (const gloss of italianGlosses) addMany(italianToSense, normalizeItalian(gloss), [entry.id]);
     const japaneseAnswers = [entry.japanese, entry.kana, ...(entry.alternativeJapanese || [])].filter(Boolean);
     const surfaceKey = normalizeJapanese(entry.japanese);
     const reading = displayReading(entry);
@@ -1000,14 +1010,12 @@ function rebuildAnswerEquivalenceIndexes(entries) {
       if (!japaneseSurfaceReadings.has(surfaceKey)) japaneseSurfaceReadings.set(surfaceKey, new Set());
       japaneseSurfaceReadings.get(surfaceKey).add(reading);
     }
-    // IT→JP may accept exact lexical synonyms only when another studyable entry
-    // has the same verified PRIMARY Italian prompt. Secondary glosses must never
-    // widen the answer set for a different sense.
-    const primaryItalian = (entry.italian || [])[0] || null;
-    if (primaryItalian) {
-      const italianKey = normalizeItalian(primaryItalian);
+    for (const gloss of italianGlosses) {
+      const italianKey = normalizeItalian(gloss);
       addMany(italianPromptJapaneseAnswers, italianKey, japaneseAnswers);
       if (reading) addMany(italianPromptRomajiAnswers, italianKey, romajiVariantsFromKana(reading));
+      if (!italianPromptSenseEntries.has(italianKey)) italianPromptSenseEntries.set(italianKey, new Map());
+      italianPromptSenseEntries.get(italianKey).set(entry.id, entry);
     }
   }
 }
@@ -1046,6 +1054,49 @@ function acceptedRomajiAnswers(vocab, italianPrompt = null) {
   return [...answers].filter(Boolean);
 }
 
+function italianPromptEntries(prompt) {
+  return [...(italianPromptSenseEntries.get(normalizeItalian(prompt || ''))?.values() || [])];
+}
+
+function matchingJapaneseEntries(prompt, answer, romaji = false) {
+  const normalized = romaji ? normalizeRomaji(answer) : normalizeJapanese(answer);
+  if (!normalized) return [];
+  return italianPromptEntries(prompt).filter(entry => romaji
+    ? romajiVariantsFromKana(displayReading(entry)).some(r => normalizeRomaji(r) === normalized)
+    : [entry.japanese, entry.kana, ...(entry.alternativeJapanese || [])].some(v => normalizeJapanese(v) === normalized));
+}
+
+// A free-input answer is right if and only if an approved lexical correspondence
+// accepts it. SRS mastery, however, requires evidence about the target sense.
+function inspectCorrectAnswer(vocab, direction, answer, italianPrompt, acceptedAsRomaji = false) {
+  if (direction === 'itToJp') {
+    const own = acceptedAsRomaji
+      ? romajiVariantsFromKana(displayReading(vocab)).some(v => normalizeRomaji(v) === normalizeRomaji(answer))
+      : [vocab.japanese, vocab.kana, ...(vocab.alternativeJapanese || [])]
+        .some(v => normalizeJapanese(v) === normalizeJapanese(answer));
+    const matches = matchingJapaneseEntries(italianPrompt || (vocab.italian || [])[0], answer, acceptedAsRomaji);
+    // Kana/romaji with the same reading can identify several distinct Japanese
+    // written forms. Do not award one specific form merely for this homophone.
+    const enteredCanonicalForm = normalizeJapanese(answer) === normalizeJapanese(vocab.japanese) && !acceptedAsRomaji;
+    const ambiguousTargetMatch = own && matches.some(v => v.id !== vocab.id &&
+      (normalizeJapanese(v.japanese) === normalizeJapanese(vocab.japanese) || !enteredCanonicalForm));
+    const other = matches.find(v => v.id !== vocab.id &&
+      (!own || normalizeJapanese(v.japanese) !== normalizeJapanese(vocab.japanese)));
+    return {
+      validOtherSense: !own,
+      ambiguousTargetMatch,
+      targetDemonstrated: own && !ambiguousTargetMatch,
+      matchedAlternative: other ? { id: other.id, japanese: other.japanese, kana: displayReading(other) } : null
+    };
+  }
+  const ownGloss = [...(vocab.italian || []), ...(vocab.alternativeItalian || [])]
+    .some(v => normalizeItalian(v) === normalizeItalian(answer));
+  const formReadingKey = normalizeJapanese(vocab.japanese) + '\x1f' + normalizeJapanese(vocab.kana || displayReading(vocab));
+  const possibleSenses = japaneseFormReadingItalianSenseEntries.get(formReadingKey)?.get(normalizeItalian(answer));
+  const ambiguousTargetMatch = ownGloss && Boolean(possibleSenses && possibleSenses.size > 1);
+  return { validOtherSense: !ownGloss, ambiguousTargetMatch, targetDemonstrated: ownGloss && !ambiguousTargetMatch };
+}
+
 function validateAnswer(vocab, direction, answer, italianPrompt = null, allowRomaji = false) {
   const candidates = acceptedAnswers(vocab, direction, italianPrompt);
   const targetSenseCandidates = direction === 'jpToIt'
@@ -1056,15 +1107,14 @@ function validateAnswer(vocab, direction, answer, italianPrompt = null, allowRom
   if (!normalized) return { result: 'wrong', candidates };
   if (candidates.some(candidate => normalize(candidate) === normalized)) {
     return { result: 'correct', candidates,
-      validOtherSense: !targetSenseCandidates.some(candidate => normalize(candidate) === normalized) };
+      ...inspectCorrectAnswer(vocab, direction, answer, italianPrompt) };
   }
   if (direction === 'itToJp' && allowRomaji) {
     const romanized = normalizeRomaji(answer);
     const romajiCandidates = acceptedRomajiAnswers(vocab, italianPrompt);
     if (romanized && romajiCandidates.some(candidate => normalizeRomaji(candidate) === romanized)) {
-      const ownRomaji = romajiVariantsFromKana(displayReading(vocab));
       return { result: 'correct', candidates, acceptedAsRomaji: true,
-        validOtherSense: !ownRomaji.some(candidate => normalizeRomaji(candidate) === romanized) };
+        ...inspectCorrectAnswer(vocab, direction, answer, italianPrompt, true) };
     }
     if (romanized && fuzzyAlmostRomaji(answer, romajiCandidates)) {
       const ownRomaji = romajiVariantsFromKana(displayReading(vocab));
@@ -1293,14 +1343,14 @@ function distractorScore(candidate, target) {
 
 function buildOptions(vocabulary, target, direction, seed, italianPrompt = null) {
   if (!isActiveStudySense(target)) throw new Error('Opzioni richieste per senso cautelativo: '+(target?.id||'unknown'));
-  const correct = direction === 'itToJp' ? target.japanese : target.italian[0];
+  const correct = direction === 'itToJp' ? target.japanese : exercisePrimaryItalian(target);
   const normalizeLabel = direction === 'itToJp' ? normalizeJapanese : normalizeItalian;
   const validAnswers = new Set(acceptedAnswers(target, direction, italianPrompt).map(normalizeLabel));
   const buckets = new Map();
   const promptKey = direction === 'itToJp' ? normalizeItalian(italianPrompt || target.italian[0] || '') : '';
   for (const candidate of vocabulary) {
     if (candidate.id === target.id || !isOperationallyStudyable(candidate) || isVocabularyExcluded(state, candidate.id) || !candidate.japanese || !(candidate.italian || []).length) continue;
-    const label = direction === 'itToJp' ? candidate.japanese : candidate.italian[0];
+    const label = direction === 'itToJp' ? candidate.japanese : exercisePrimaryItalian(candidate);
     if (!label || validAnswers.has(normalizeLabel(label))) continue;
     // Extra guard for JP→IT: a different sense record with the identical Japanese
     // surface can never be used as a wrong option when the prompt provides no context.
@@ -1321,7 +1371,7 @@ function buildOptions(vocabulary, target, direction, seed, italianPrompt = null)
   outer: for (const score of scores) {
     const ordered = seededShuffle(buckets.get(score), `${seed}:${target.id}:${direction}:score:${score}`);
     for (const candidate of ordered) {
-      const label = direction === 'itToJp' ? candidate.japanese : candidate.italian[0];
+      const label = direction === 'itToJp' ? candidate.japanese : exercisePrimaryItalian(candidate);
       const normalized = normalizeLabel(label);
       if (!seen.has(normalized)) {
         values.push(label);
@@ -1758,11 +1808,55 @@ function selectNewWords(vocabulary, state, selectedTopics, count, seed) {
   return picked;
 }
 
+function defaultItalianQuestionPrompt(vocab, seed) {
+  const choices = (vocab.italian || []).filter(Boolean);
+  return choices.length ? choices[hashString(`${seed}:italian-prompt:${vocab.id}`) % choices.length] : '';
+}
+
+function refreshQuestionPreferredVariant(item, vocab) {
+  if (item.type !== 'question') return;
+  const preferred = preferredItalianSynonym(vocab) || '';
+  // Existing paused sessions may predate this field. Keep their original
+  // Italian prompt whenever the user has not selected any preference.
+  const previous = item.quizPreferredItalian || '';
+  if (item.direction === 'itToJp' && previous !== preferred) {
+    item.italianPrompt = preferred || defaultItalianQuestionPrompt(vocab, item.optionSeed || 'legacy');
+    item.options = null;
+  }
+  if (item.direction === 'jpToIt' && previous !== preferred) item.options = null;
+  item.quizPreferredItalian = preferred;
+}
+
+// User-approved exemplar hints; no changes to canonical vocabulary data.
+// All explicitly documented alternative answers remain valid with or without
+// the hint, so an explanatory clue can never create an unfair wrong answer.
+const KOTOBA_APPROVED_ITALIAN_QUIZ_HINTS = Object.freeze({
+  'jmdict-1454080-1': { italian: 'strada', hint: 'Via, sentiero o percorso' },
+  'jmdict-1454290-1': { italian: 'strada', hint: 'Strada destinata alla circolazione dei veicoli' }
+});
+function questionContextHint(item, vocab) {
+  if (item.type !== 'question' || item.exerciseType !== 'free' || item.direction !== 'itToJp') return null;
+  const key = normalizeItalian(item.italianPrompt || (vocab.italian || [])[0]);
+  const possibilities = italianPromptEntries(key);
+  if (new Set(possibilities.map(x => normalizeJapanese(x.japanese))).size < 2) return null;
+  const appearedBefore = (state.answers || []).some(a => a.vocabularyId === vocab.id && a.direction === 'itToJp') ||
+    Boolean(state.progress?.[vocab.id]?.itToJp?.lastReviewedAt);
+  if (!appearedBefore) return null;
+  const explicit = KOTOBA_APPROVED_ITALIAN_QUIZ_HINTS[vocab.id];
+  if (explicit && normalizeItalian(explicit.italian) === key) return explicit.hint;
+  // Use only an existing, concise, editorially approved sense note. Never
+  // derive an invented distinction from generic example sentences.
+  const note = String(vocab.senseNoteItalian || '').trim();
+  if (note.length >= 12 && note.length <= 130 && possibilities.some(x =>
+      x.id !== vocab.id && String(x.senseNoteItalian || '').trim() !== note)) return note;
+  return null;
+}
+
 function questionItem(vocab, direction, exerciseType, vocabulary, seed, source = 'review', includeOptions = true) {
   if (!isActiveStudySense(vocab)) throw new Error('Quiz escluso dal filtro M3: '+(vocab?.id||'unknown'));
-  const italianChoices = (vocab.italian || []).filter(Boolean);
-  const italianPrompt = direction === 'itToJp' && italianChoices.length
-    ? italianChoices[hashString(`${seed}:italian-prompt:${vocab.id}`) % italianChoices.length]
+  const preferred = preferredItalianSynonym(vocab) || '';
+  const italianPrompt = direction === 'itToJp'
+    ? (preferred || defaultItalianQuestionPrompt(vocab, seed))
     : null;
   return {
     type: 'question',
@@ -1771,6 +1865,7 @@ function questionItem(vocab, direction, exerciseType, vocabulary, seed, source =
     exerciseType,
     source,
     italianPrompt,
+    quizPreferredItalian: preferred,
     optionSeed: seed,
     options: exerciseType === 'mc' && includeOptions ? buildOptions(vocabulary, vocab, direction, seed, italianPrompt) : null,
     retryCount: 0
@@ -3627,6 +3722,7 @@ function renderSession() {
   const item = runtime.items[runtime.index];
   const vocab = byId(item.vocabularyId);
   if (!vocab || !isActiveStudySense(vocab)) { runtime.index++; return renderSession(); }
+  if (item.type === 'question' && !feedback) refreshQuestionPreferredVariant(item, vocab);
   if (item.type === 'question' && item.exerciseType === 'mc' && !feedback && !Array.isArray(item.options)) {
     item.options = buildOptions(vocabulary, vocab, item.direction,
       item.optionSeed || `${runtime.seed || 'session'}:deferred:${runtime.index}`, item.italianPrompt);
@@ -3685,7 +3781,8 @@ function renderSession() {
       ${vocab.kana ? `<div class="kana">${escapeHtml(displayReading(vocab))}</div>` : ''}
       <div class="meaning">${escapeHtml(jishoDisplayMeaning(vocab))}</div>
       ${usageRegisterFeedbackHtml(vocab)}
-      ${feedback.validOtherSense ? '<p class="field-help">La tua risposta è valida per un’altra parola o accezione. Il livello della scheda richiesta non viene modificato.</p>' : ''}
+      ${feedback.validOtherSense ? `<p class="field-help">Risposta valida${feedback.matchedAlternative?.japanese ? ': '+escapeHtml(feedback.matchedAlternative.japanese)+(feedback.matchedAlternative.kana ? '（'+escapeHtml(feedback.matchedAlternative.kana)+'）' : '') : ''}. Anche ${escapeHtml(vocab.japanese)}${vocab.kana ? '（'+escapeHtml(displayReading(vocab))+'）' : ''} è possibile per la domanda mostrata. La scheda specifica non avanza nell’SRS.</p>` : ''}
+      ${feedback.ambiguousTargetMatch ? '<p class="field-help">Risposta corretta, ma condivisa da più voci: nessun progresso SRS attribuito arbitrariamente.</p>' : ''}
       ${feedback.jishoAssisted ? '<p class="field-help">Hai consultato Jisho: questa risposta non modifica la padronanza SRS.</p>' : ''}
       ${extraItalianLabel ? `<p class="field-help">Altre traduzioni accettate per questa forma: ${escapeHtml(extraItalianLabel)}</p>` : ''}
       <button class="btn primary wide" data-action="question-continue">Continua</button>
@@ -3693,7 +3790,10 @@ function renderSession() {
   } else {
     const isItToJp = item.direction === 'itToJp';
     const prompt = isItToJp ? 'Come si dice in giapponese?' : 'Cosa significa in italiano?';
-    const term = isItToJp ? String(item.italianPrompt || vocab.italian[0] || '').toLocaleUpperCase('it-IT') : vocab.japanese;
+    const term = isItToJp ? String(item.italianPrompt || exercisePrimaryItalian(vocab)).toLocaleUpperCase('it-IT') : vocab.japanese;
+    const contextHint = questionContextHint(item, vocab);
+    const hasOtherTranslations = isItToJp && item.exerciseType === 'free' &&
+      new Set(italianPromptEntries(item.italianPrompt).map(v=>normalizeJapanese(v.japanese))).size > 1;
     const answerArea = item.exerciseType === 'free'
       ? `<form id="answer-form"><input id="answer-input" class="answer-input ${isItToJp ? 'jp-input' : ''}" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="${isItToJp ? 'Kanji, kana o romaji...' : 'Scrivi la risposta...'}" aria-label="Risposta"><button class="btn primary wide" type="submit">Conferma</button><button class="btn secondary wide" type="button" data-action="dont-know">Non lo so</button></form>`
       : `<div class="options" role="group" aria-label="Scegli una risposta">${item.options.map((o, idx) => `<button class="option ${selectedOption === o ? 'selected' : ''}" data-option="${idx}">${isItToJp ? renderJapaneseExerciseOption(o, vocab) : escapeHtml(o)}</button>`).join('')}</div><button class="btn primary wide" data-action="confirm-option" ${selectedOption == null ? 'disabled' : ''}>Conferma</button><button class="btn secondary wide" type="button" data-action="dont-know">Non lo so</button>`;
@@ -3703,6 +3803,8 @@ function renderSession() {
       <p class="question-prompt">${prompt}</p>
       <div class="question-term ${isItToJp ? '' : 'jp-question'}">${escapeHtml(term)}</div>
       ${showPromptReading ? `<div class="question-reading">${escapeHtml(promptReading)}</div>` : ''}
+      ${contextHint ? `<p class="field-help">Contesto: ${escapeHtml(contextHint)}</p>` :
+        hasOtherTranslations ? '<p class="field-help">Sono ammesse più traduzioni corrette.</p>' : ''}
       ${answerArea}
     </section>`;
   }
@@ -3809,7 +3911,8 @@ function submitAnswer(answer, forcedResult = null, gaveUp = false) {
   // If the learner answered a *different* sense of an ambiguous bare
   // Japanese prompt, the response is valid but does not prove mastery of the
   // selected sense. Do not create or inflate an unrelated SRS progress record.
-  const srsCredited = !checked.validOtherSense && !item.jishoConsulted;
+  const srsCredited = !checked.validOtherSense && !checked.ambiguousTargetMatch &&
+    checked.targetDemonstrated !== false && !item.jishoConsulted;
   const beforeProgress = state.progress?.[vocab.id]?.[item.direction] || defaultDirectionProgress();
   const updated = srsCredited ? updateDirectionProgress(beforeProgress, {
     result: checked.result,
@@ -3835,6 +3938,7 @@ function submitAnswer(answer, forcedResult = null, gaveUp = false) {
     srsCredited,
     jishoAssisted: Boolean(item.jishoConsulted),
     validOtherSense: Boolean(checked.validOtherSense),
+    ambiguousTargetMatch: Boolean(checked.ambiguousTargetMatch),
     sessionMode: runtime?.mode || 'daily',
     source: item.source || null,
     timestamp: now.toISOString(),
@@ -3869,6 +3973,8 @@ function submitAnswer(answer, forcedResult = null, gaveUp = false) {
 
   feedback = { result: checked.result, answer: String(answer),
     validOtherSense: Boolean(checked.validOtherSense),
+    ambiguousTargetMatch: Boolean(checked.ambiguousTargetMatch),
+    matchedAlternative: checked.matchedAlternative || null,
     jishoAssisted: Boolean(item.jishoConsulted) };
   persistActiveSession();
   renderSession();
@@ -4223,6 +4329,7 @@ window.addEventListener('resize', kotobaScheduleVisibleAnswer);
 let jishoQuery = '';
 let jishoCurrentEntry = null;
 let jishoModalOpen = false;
+let jishoStudyPreferencesChanged = false;
 let jishoFocusReturn = null;
 const jishoEntries = new Map();
 const jishoSearchIndex = new Map();
@@ -4258,11 +4365,17 @@ function jishoPreferences(){
 function jishoTranslationCandidates(vocab){
   return [...new Set([...(vocab.italian||[]),...(vocab.alternativeItalian||[])].map(x=>String(x).trim()).filter(Boolean))];
 }
+function preferredItalianSynonym(vocab){
+  const chosen=state?.dictionaryPreferences?.translationBySense?.[vocab.id];
+  return jishoTranslationCandidates(vocab).find(x=>x===chosen) || null;
+}
+function exercisePrimaryItalian(vocab){
+  return preferredItalianSynonym(vocab) || (vocab.italian || [])[0] || jishoTranslationCandidates(vocab)[0] || '';
+}
 function jishoPreferredTranslation(vocab){
   const all=jishoTranslationCandidates(vocab);
-  const chosen=jishoPreferences().translationBySense[vocab.id];
-  if(chosen && all.includes(chosen))return [chosen,...all.filter(x=>x!==chosen)];
-  return all;
+  const chosen=preferredItalianSynonym(vocab);
+  return chosen ? [chosen,...all.filter(x=>x!==chosen)] : all;
 }
 function jishoDisplayMeaning(vocab){return jishoPreferredTranslation(vocab).join(' · ');}
 function jishoSortSenses(entryId){
@@ -4373,6 +4486,8 @@ function jishoBindActions(container,overlay=false){
     if(!choice)return;
     const p=jishoPreferences();
     if(p.translationBySense[id]===choice)delete p.translationBySense[id];else p.translationBySense[id]=choice;
+    rebuildRemainingMultipleChoiceOptions();
+    if(overlay && view === 'session') jishoStudyPreferencesChanged = true;
     saveState(state);
     if(overlay)jishoShowModal(jishoEntryId(vocab));else renderJisho();
   }));
@@ -4412,6 +4527,7 @@ function jishoShowModal(entryId){
 function jishoOpenFromStudy(vocab){
   if(!vocab||!jishoEntries.has(jishoEntryId(vocab)) || jishoModalOpen)return;
   jishoFocusReturn=document.activeElement;
+  jishoStudyPreferencesChanged = false;
   pauseSessionTimingForBackground();
   const item=runtime?.items?.[runtime.index];
   if(item?.type==='question' && !feedback){item.jishoConsulted=true;persistActiveSession();}
@@ -4422,7 +4538,10 @@ function jishoCloseModal(){
   document.querySelector('.jisho-modal-backdrop')?.remove();
   jishoModalOpen=false;
   resumeSessionTimingIfVisible();
-  if(jishoFocusReturn?.isConnected)jishoFocusReturn.focus();
+  const refreshQuiz = jishoStudyPreferencesChanged && runtime && view === 'session';
+  jishoStudyPreferencesChanged = false;
+  if (refreshQuiz) renderSession();
+  else if(jishoFocusReturn?.isConnected)jishoFocusReturn.focus();
   jishoFocusReturn=null;
 }
 
