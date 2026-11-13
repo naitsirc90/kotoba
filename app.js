@@ -18,7 +18,7 @@ if (KOTOBA_OPERATIONAL_HOLD_IDS.size !== 68 ||
 const isOperationallyHeldId = id => KOTOBA_OPERATIONAL_HOLD_IDS.has(id);
 const isOperationallyStudyable = vocab => Boolean(vocab && vocab.studyEnabled !== false && !isOperationallyHeldId(vocab.id));
 
-const KOTOBA_RELEASE = '3.1.16-preferred-answers-qa';
+const KOTOBA_RELEASE = '3.1.16-preferred-answers-desktop';
 // Immutable, locally embedded priority index. This index does not change
 // SRS deadlines, selected topics, Study Level gates or saved progress.
 const KOTOBA_LEARNING_PRIORITY_SCORES = window.__KOTOBA_LEARNING_PRIORITY__?.scores || {};

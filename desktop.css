@@ -137,3 +137,139 @@
 @media (prefers-reduced-motion: reduce) {
   body.kotoba-web .app-shell .screen {scroll-behavior:auto;}
 }
+
+/* Kotoba 3.1.16 Desktop adaptation QA — scoped to PWA, not Android WebView.
+   Between 700 and 979px older releases kept a 560px phone column.
+   Give tablets/laptop split windows a real fluid layout without changing phones. */
+@media (min-width: 700px) and (max-width: 899px) {
+  body.kotoba-web:not(.kotoba-exercise-viewport) { padding: 16px 12px 20px; }
+  body.kotoba-web:not(.kotoba-exercise-viewport) .app-shell:has(> .bottom-nav) {
+    width: 100%;
+    max-width: none;
+    min-height: calc(100dvh - 36px);
+    margin: 0 auto;
+    overflow: visible;
+    border-radius: 22px;
+  }
+  body.kotoba-web:not(.kotoba-exercise-viewport) .app-shell:has(> .bottom-nav) > .screen {
+    width: 100%;
+    min-width: 0;
+    min-height: calc(100dvh - 36px);
+    padding: 28px clamp(20px, 3.5vw, 34px) 118px;
+  }
+  body.kotoba-web:not(.kotoba-exercise-viewport) .app-shell:has(> .bottom-nav) > .bottom-nav {
+    width: calc(100vw - 24px);
+    max-width: none;
+    bottom: 20px;
+    border-radius: 0 0 22px 22px;
+  }
+  body.kotoba-web .screen-topics .topic-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  body.kotoba-web .screen-progress .topic-progress-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); column-gap: 24px; }
+  body.kotoba-web .screen-kana .kana-panel { min-width: 0; }
+  body.kotoba-web .app-shell:not(:has(> .bottom-nav)) {
+    max-width: min(800px, calc(100vw - 24px));
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Fluid sidebar starts at 900px instead of the former 980px dead zone. */
+@media (min-width: 900px) and (max-width: 979px) {
+  body.kotoba-web:not(.kotoba-exercise-viewport) { padding: 22px 20px; }
+  body.kotoba-web:not(.kotoba-exercise-viewport) .app-shell:has(> .bottom-nav) {
+    display: grid;
+    grid-template-columns: 184px minmax(0,1fr);
+    align-items: stretch;
+    width: min(1260px, 100%);
+    max-width: none;
+    min-height: calc(100dvh - 44px);
+    margin: 0 auto;
+    border-radius: 24px;
+    overflow: visible;
+    box-shadow: 0 16px 56px rgba(19,27,24,.075);
+    background: white;
+  }
+  body.kotoba-web .app-shell:has(> .bottom-nav) > .screen {
+    grid-column: 2; grid-row: 1;
+    min-width: 0;
+    min-height: calc(100dvh - 44px);
+    padding: 28px 24px 48px;
+    border-radius: 0 24px 24px 0;
+    background: var(--bg);
+  }
+  body.kotoba-web .app-shell:has(> .bottom-nav) > .bottom-nav {
+    grid-column: 1; grid-row: 1;
+    position: sticky;
+    top: 22px; bottom: auto; left: auto;
+    transform: none;
+    align-self: start;
+    display: flex; flex-direction: column; align-items: stretch;
+    gap: 6px; width: 100%; height: auto;
+    padding: 28px 10px 26px;
+    background: #fff; border: 0;
+    border-right: 1px solid var(--line);
+    border-radius: 24px 0 0 0;
+    backdrop-filter: none;
+  }
+  body.kotoba-web .app-shell:has(> .bottom-nav) > .bottom-nav::before {
+    content: 'ことば  ·  Kotoba'; display: block;
+    font-size: 18px; font-weight: 850; letter-spacing: -.025em;
+    color: var(--primary); padding: 6px 10px 25px;
+  }
+  body.kotoba-web .bottom-nav .nav-item { flex-direction: row; justify-content: flex-start; gap: 10px; min-height: 48px; padding: 10px; border-radius: 12px; font-size: 13px; }
+  body.kotoba-web .bottom-nav .nav-item.active,
+  body.kotoba-web .bottom-nav .nav-item:hover { background: var(--primary-soft); }
+  body.kotoba-web .bottom-nav .nav-icon { width: 22px; height: 22px; flex: 0 0 22px; }
+  body.kotoba-web .app-shell:not(:has(> .bottom-nav)) { max-width: 800px; margin-inline: auto; }
+}
+
+@media (min-width: 900px) {
+  /* Content must be able to shrink inside grid tracks and Japanese text. */
+  body.kotoba-web :is(.screen, .panel, .today-card, .study-card, .jisho-entry, .jisho-sense, .topic-card, .jisho-result) { min-width: 0; }
+  body.kotoba-web :is(.jisho-result-jp, .jisho-result-it, .jisho-entry-header h2, .jisho-note, .topic-card strong) { overflow-wrap: anywhere; }
+  body.kotoba-web .screen-topics .topic-list { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  body.kotoba-web .screen-progress .topic-progress-list { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); column-gap: 30px; row-gap: 15px; }
+  body.kotoba-web .screen-progress .direction-cards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  body.kotoba-web .screen-jisho .jisho-results { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; align-items: stretch; }
+  body.kotoba-web .screen-jisho .jisho-result { align-content: start; }
+  body.kotoba-web .screen-settings .settings-stack { max-width: 900px; }
+}
+@media (min-width: 1100px) {
+  body.kotoba-web .screen-progress { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap: 0 18px; align-content:start; align-items:start; }
+  body.kotoba-web .screen-progress > .page-header { grid-column: 1/-1; }
+  body.kotoba-web .screen-progress > .panel:nth-of-type(1) { grid-column:1; }
+  body.kotoba-web .screen-progress > .panel:nth-of-type(2) { grid-column:2; }
+  body.kotoba-web .screen-progress > .panel:nth-of-type(3),
+  body.kotoba-web .screen-progress > .panel:nth-of-type(4) { grid-column:1/-1; }
+  body.kotoba-web .screen-jisho .jisho-entry { grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+  body.kotoba-web .screen-jisho .jisho-entry > :not(.jisho-sense) { grid-column:1/-1; }
+  body.kotoba-web .screen-jisho .jisho-entry > .jisho-sense { height:100%; }
+}
+@media (min-width: 900px) and (max-width: 1019px) {
+  /* Narrow desktop: prefer clear single-column forms to cramped dual panels. */
+  body.kotoba-web .screen-kana { display:block; }
+  body.kotoba-web .screen-kana > .kana-panel { margin-bottom: 14px; }
+  body.kotoba-web .screen-kana > [data-action="kana-start"] { max-width: 420px; }
+  body.kotoba-web .screen-home { display:block; }
+  body.kotoba-web .screen-home > .extra-study { margin-top: 16px; }
+  body.kotoba-web .screen-home > .mini-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:18px; }
+  body.kotoba-web .screen-home > .mini-stats > div { display:block; text-align:center; padding:16px 8px; }
+  body.kotoba-web .screen-home > .mini-stats strong { display:block; }
+}
+@media (min-width: 700px) and (max-width: 899px) {
+  /* The long topic summary is much easier to scan in two columns. */
+  body.kotoba-web .screen-progress .direction-cards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+
+@media (min-width: 760px) {
+  body.kotoba-web .screen-settings .settings-disclosure-body .topic-list {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 10px;
+  }
+  body.kotoba-web .screen-settings .settings-disclosure-body .topic-card { min-width:0; }
+}
+@media (min-width: 1100px) {
+  body.kotoba-web .screen-free-config { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 18px; align-content:start; align-items:start; }
+  body.kotoba-web .screen-free-config > .page-header { grid-column:1/-1; }
+  body.kotoba-web .screen-free-config > :not(.panel):not(.page-header) { grid-column:1/-1; }
+}
