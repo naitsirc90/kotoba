@@ -18,7 +18,7 @@ if (KOTOBA_OPERATIONAL_HOLD_IDS.size !== 68 ||
 const isOperationallyHeldId = id => KOTOBA_OPERATIONAL_HOLD_IDS.has(id);
 const isOperationallyStudyable = vocab => Boolean(vocab && vocab.studyEnabled !== false && !isOperationallyHeldId(vocab.id));
 
-const KOTOBA_RELEASE = '3.1.16-preferred-answers-desktop';
+const KOTOBA_RELEASE = '3.1.16-preferred-answers-desktop-settings-fix';
 // Immutable, locally embedded priority index. This index does not change
 // SRS deadlines, selected topics, Study Level gates or saved progress.
 const KOTOBA_LEARNING_PRIORITY_SCORES = window.__KOTOBA_LEARNING_PRIORITY__?.scores || {};
@@ -2548,12 +2548,33 @@ function bindSwipeNavigation() {
   }, { passive: true });
 }
 
-function bindCommon() {
-  document.querySelectorAll('[data-nav]').forEach(btn => btn.addEventListener('click', () => {
-    view = btn.dataset.nav;
-    feedback = null;
+// One delegated handler survives all shell replacements (including swipe previews).
+// If a stale/offline data snapshot makes a view fail to render, never leave the
+// user with an unresponsive menu: show a safe retry/recovery screen instead.
+root.addEventListener('click', event => {
+  const target = event.target instanceof Element ? event.target.closest('button[data-nav]') : null;
+  if (!target || !root.contains(target) || target.closest('.swipe-preview')) return;
+  const requested = target.dataset.nav;
+  if (!MAIN_NAV_VIEWS.includes(requested)) return;
+  event.preventDefault();
+  view = requested;
+  feedback = null;
+  try {
     render();
-  }));
+  } catch (error) {
+    console.error('[Kotoba] Errore nella navigazione verso ' + requested, error);
+    const labels = {home:'Home', jisho:'Jisho', progress:'Progressi', kana:'Kana', settings:'Impostazioni'};
+    const label = labels[requested];
+    root.innerHTML = `<div class="app-shell"><main class="screen screen-${requested}">
+      <header class="page-header"><h1>${label}</h1></header>
+      <section class="panel" role="alert"><p>La schermata non è stata caricata correttamente. I progressi salvati non sono stati modificati.</p>
+      <p>Puoi riprovare dal menu. Se il problema persiste, chiudi tutte le finestre di Kotoba e riapri la PWA per completare l'aggiornamento offline.</p>
+      <button type="button" class="btn secondary" data-nav="${requested}">Riprova</button></section>
+      </main>${nav(requested)}</div>`;
+  }
+});
+
+function bindCommon() {
   document.querySelector('[data-action="cancel-reset"]')?.addEventListener('click', () => { resetDialogOpen = false; render(); });
   document.querySelector('[data-action="confirm-reset"]')?.addEventListener('click', () => {
     state = resetState();
@@ -3147,6 +3168,16 @@ function renderSettings() {
   const balance = dailyBalanceIndex(setting);
   const limitOn = setting.dailyNewLimit != null;
   const displayedLimit = limitOn ? setting.dailyNewLimit : Math.max(0, Number(setting.newPerDay ?? 10));
+  // Cached PWA installations may temporarily pair a newer app.js with an older
+  // vocabulary snapshot. Counters are informative only: their absence must
+  // never prevent opening Settings or affect SRS/progress data.
+  const meta = EMBEDDED_VOCABULARY?.meta || {};
+  const canonicalFromMeta = Number(meta.productionReadyCanonical);
+  const eligibleFromMeta = Number(meta.effectiveStudyEligible);
+  const canonicalCount = Number.isSafeInteger(canonicalFromMeta) && canonicalFromMeta > 0
+    ? canonicalFromMeta : vocabulary.length;
+  const eligibleCount = Number.isSafeInteger(eligibleFromMeta) && eligibleFromMeta >= 0
+    ? eligibleFromMeta : vocabulary.filter(isOperationallyStudyable).length;
   shell(`
     <header class="page-header"><p class="eyebrow">PREFERENZE</p><h1>Impostazioni</h1><p class="field-help">Tocca una sezione per modificare le preferenze o leggere le spiegazioni.</p></header>
     <div id="kotoba-storage-error" role="alert"></div><div class="settings-stack">
@@ -3206,7 +3237,7 @@ function renderSettings() {
       <details class="settings-disclosure" data-settings-section="data" ${settingsOpenSection === 'data' ? 'open' : ''}>
         <summary><span><strong>Informazioni e dati</strong><small>Versione ${escapeHtml(KOTOBA_RELEASE.split('-')[0])} · Fonti e licenze</small></span><span class="disclosure-arrow" aria-hidden="true">⌄</span></summary>
         <div class="settings-disclosure-body">
-          <p class="field-help"><strong>Versione app:</strong> ${escapeHtml(KOTOBA_RELEASE.split('-')[0])}<br><strong>Dizionario:</strong> Kotoba Lexicon V4.2 · ${EMBEDDED_VOCABULARY.meta.productionReadyCanonical.toLocaleString('it-IT')} accezioni canoniche (${EMBEDDED_VOCABULARY.meta.effectiveStudyEligible.toLocaleString('it-IT')} esercitabili (filtro M3)).<br><strong>Livelli:</strong> Essenziale, Base, Intermedio, Avanzato, Esperto. L'app è completamente offline e i dati restano in localStorage. <strong>HOLD:</strong> recuperi invariati rispetto alla 3.1.7.</p>
+          <p class="field-help"><strong>Versione app:</strong> ${escapeHtml(KOTOBA_RELEASE.split('-')[0])}<br><strong>Dizionario:</strong> Kotoba Lexicon V4.2 · ${canonicalCount.toLocaleString('it-IT')} accezioni canoniche (${eligibleCount.toLocaleString('it-IT')} esercitabili (filtro M3)).<br><strong>Livelli:</strong> Essenziale, Base, Intermedio, Avanzato, Esperto. L'app è completamente offline e i dati restano in localStorage. <strong>HOLD:</strong> recuperi invariati rispetto alla 3.1.7.</p>
           <details class="kotoba-credits"><summary>Fonti e licenze del dizionario</summary>
       <p><strong>JMdict / EDRDG:</strong> grafie, letture e accezioni. © EDRDG e James W. Breen, CC BY-SA 4.0; dati selezionati e rielaborati per il progetto Kotoba Offline. Licenza: https://www.edrdg.org/edrdg/licence.html</p>
       <p><strong>FreeDict italiano–giapponese:</strong> dati storici di origine Wiktionary/DBnary, CC BY-SA 3.0. https://freedict.org/</p>
