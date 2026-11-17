@@ -18,7 +18,7 @@ if (KOTOBA_OPERATIONAL_HOLD_IDS.size !== 68 ||
 const isOperationallyHeldId = id => KOTOBA_OPERATIONAL_HOLD_IDS.has(id);
 const isOperationallyStudyable = vocab => Boolean(vocab && vocab.studyEnabled !== false && !isOperationallyHeldId(vocab.id));
 
-const KOTOBA_RELEASE = '3.1.16-preferred-answers-desktop-settings-fix';
+const KOTOBA_RELEASE = '3.1.17';
 // Immutable, locally embedded priority index. This index does not change
 // SRS deadlines, selected topics, Study Level gates or saved progress.
 const KOTOBA_LEARNING_PRIORITY_SCORES = window.__KOTOBA_LEARNING_PRIORITY__?.scores || {};
@@ -30,7 +30,9 @@ function kotobaIsExcludedDistractorPair(a,b){
   const first = String(a||''), second = String(b||'');
   return KOTOBA_QUIZ_EXCLUDED_PAIRS.has(first < second ? `${first}|${second}` : `${second}|${first}`)
     || (embeddedVocabularyById.get(first)?.op4DistractorExclusionIds || []).includes(second)
-    || (embeddedVocabularyById.get(second)?.op4DistractorExclusionIds || []).includes(first);
+    || (embeddedVocabularyById.get(second)?.op4DistractorExclusionIds || []).includes(first)
+    || (embeddedVocabularyById.get(first)?.m2InheritedQuizConstraints?.m3ExcludedDistractorIds || []).includes(second)
+    || (embeddedVocabularyById.get(second)?.m2InheritedQuizConstraints?.m3ExcludedDistractorIds || []).includes(first);
 }
 
 
@@ -69,6 +71,7 @@ const TOPICS = [
 const topicLabel = id => TOPICS.find(t => t.id === id)?.label ?? id;
 
 const STUDY_LEVELS = ['ESSENTIAL', 'BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
+const UNCLASSIFIED_STUDY_RANK = STUDY_LEVELS.length;
 const STUDY_LEVEL_META = {
   ESSENTIAL: { label: 'Essenziale', reference: 'circa N5', legacyJlpt: 'N5' },
   BASIC: { label: 'Base', reference: 'circa N4', legacyJlpt: 'N4' },
@@ -119,6 +122,7 @@ const defaultState = () => ({
     dailyGoalMinutes: 10,
     maxMinutes: 10,
     studyLevel: 'BASIC',
+    includeUnclassified: false,
     jlptLevel: 'N4',
     selectedTopics: [],
     // 3.1.8 controls; the old 'newPerDay' value remains as a migration anchor.
@@ -163,6 +167,7 @@ function loadState() {
     if (!Object.prototype.hasOwnProperty.call(parsed.settings || {}, 'studyLevel')) {
       mergedSettings.studyLevel = legacyJlptToStudyLevel(parsed.settings?.jlptLevel || mergedSettings.jlptLevel);
     }
+    mergedSettings.includeUnclassified = false;
     mergedSettings.studyLevel = normalizedStudyLevel(mergedSettings.studyLevel);
     mergedSettings.jlptLevel = studyLevelToLegacyJlpt(mergedSettings.studyLevel);
     mergedSettings.exerciseMode = 'adaptive';
@@ -1066,6 +1071,14 @@ function matchingJapaneseEntries(prompt, answer, romaji = false) {
     : [entry.japanese, entry.kana, ...(entry.alternativeJapanese || [])].some(v => normalizeJapanese(v) === normalized));
 }
 
+// An alternative explicitly marked context-dependent is recognized as a
+// possible answer, but a bare prompt does not establish the target sense.
+function kotobaContextualItalian(vocab, answer) {
+  const key=normalizeItalian(answer);
+  if (!key || (vocab.italian || []).some(x=>normalizeItalian(x)===key)) return false;
+  return (vocab.m2ContextualAlternativeItalian || []).some(x=>normalizeItalian(x)===key);
+}
+
 // A free-input answer is right if and only if an approved lexical correspondence
 // accepts it. SRS mastery, however, requires evidence about the target sense.
 function inspectCorrectAnswer(vocab, direction, answer, italianPrompt, acceptedAsRomaji = false) {
@@ -1082,10 +1095,12 @@ function inspectCorrectAnswer(vocab, direction, answer, italianPrompt, acceptedA
       (normalizeJapanese(v.japanese) === normalizeJapanese(vocab.japanese) || !enteredCanonicalForm));
     const other = matches.find(v => v.id !== vocab.id &&
       (!own || normalizeJapanese(v.japanese) !== normalizeJapanese(vocab.japanese)));
+    const contextualTargetMatch = own && kotobaContextualItalian(vocab, italianPrompt || (vocab.italian || [])[0]);
     return {
       validOtherSense: !own,
       ambiguousTargetMatch,
-      targetDemonstrated: own && !ambiguousTargetMatch,
+      contextualTargetMatch,
+      targetDemonstrated: own && !ambiguousTargetMatch && !contextualTargetMatch,
       matchedAlternative: other ? { id: other.id, japanese: other.japanese, kana: displayReading(other) } : null
     };
   }
@@ -1094,7 +1109,9 @@ function inspectCorrectAnswer(vocab, direction, answer, italianPrompt, acceptedA
   const formReadingKey = normalizeJapanese(vocab.japanese) + '\x1f' + normalizeJapanese(vocab.kana || displayReading(vocab));
   const possibleSenses = japaneseFormReadingItalianSenseEntries.get(formReadingKey)?.get(normalizeItalian(answer));
   const ambiguousTargetMatch = ownGloss && Boolean(possibleSenses && possibleSenses.size > 1);
-  return { validOtherSense: !ownGloss, ambiguousTargetMatch, targetDemonstrated: ownGloss && !ambiguousTargetMatch };
+  const contextualTargetMatch = ownGloss && kotobaContextualItalian(vocab, answer);
+  return { validOtherSense: !ownGloss, ambiguousTargetMatch, contextualTargetMatch,
+    targetDemonstrated: ownGloss && !ambiguousTargetMatch && !contextualTargetMatch };
 }
 
 function validateAnswer(vocab, direction, answer, italianPrompt = null, allowRomaji = false) {
@@ -1336,7 +1353,9 @@ function exerciseTypeForVocabulary(state, vocabularyId, direction, index, seed) 
 function distractorScore(candidate, target) {
   let score = 0;
   if (candidate.partOfSpeech === target.partOfSpeech) score += 4;
-  score += candidate.topics.filter(t => target.topics.includes(t)).length * 2;
+  const candidateTopics = Array.isArray(candidate.topics) ? candidate.topics : [];
+  const targetTopics = Array.isArray(target.topics) ? target.topics : [];
+  score += candidateTopics.filter(t => targetTopics.includes(t)).length * 2;
   if (candidate.difficulty === target.difficulty) score += 1;
   return score;
 }
@@ -1597,8 +1616,8 @@ function availableNewWords(vocabulary, state, selectedTopics) {
     const targetMap = byEntry.get(key);
     const existing = targetMap.get(target.id);
     const triggerStudyLevel = vocabularyStudyLevel(trigger) || vocabularyStudyLevel(target);
-    if (!triggerStudyLevel) continue;
-    const triggerRank = studyLevelRank(triggerStudyLevel);
+    if (!triggerStudyLevel && !state.settings.includeUnclassified) continue;
+    const triggerRank = triggerStudyLevel ? studyLevelRank(triggerStudyLevel) : UNCLASSIFIED_STUDY_RANK;
     if (!existing || triggerRank < existing.triggerRank) {
       targetMap.set(target.id, { target, trigger, triggerRank, matchedTopics });
     } else {
@@ -1639,6 +1658,7 @@ function availableNewWords(vocabulary, state, selectedTopics) {
         ...required,
         _senseTargetId: target.id,
         _senseTargetStudyLevel: vocabularyStudyLevel(trigger) || vocabularyStudyLevel(target),
+        _senseTargetUnclassified: !(vocabularyStudyLevel(trigger) || vocabularyStudyLevel(target)),
         _senseTargetTopics: matchedTopics,
         _senseForcedPrerequisite: required.id !== target.id
       };
@@ -1658,8 +1678,8 @@ function topicLearningTargets(vocabulary, state, selectedTopics) {
     const target = trigger.mergedIntoSenseId ? vocabMap.get(trigger.mergedIntoSenseId) : trigger;
     if (!target || !isActiveStudySense(target) || !canIntroduceVocabulary(target) || isVocabularyExcluded(state, target.id)) continue;
     const triggerStudyLevel = vocabularyStudyLevel(trigger) || vocabularyStudyLevel(target);
-    if (!triggerStudyLevel) continue;
-    const rank = studyLevelRank(triggerStudyLevel);
+    if (!triggerStudyLevel && !state.settings.includeUnclassified) continue;
+    const rank = triggerStudyLevel ? studyLevelRank(triggerStudyLevel) : UNCLASSIFIED_STUDY_RANK;
     const existing = targets.get(target.id);
     if (!existing || rank < existing.targetStudyLevelRank) targets.set(target.id, { vocab: target, targetStudyLevelRank: rank });
   }
@@ -1691,6 +1711,7 @@ function studyLevelLearningSnapshot(vocabulary, state, selectedTopics) {
 }
 
 function candidateTargetStudyLevelRank(vocab) {
+  if (vocab?._senseTargetUnclassified) return UNCLASSIFIED_STUDY_RANK;
   const level = vocab?._senseTargetStudyLevel || vocabularyStudyLevel(vocab);
   return level ? studyLevelRank(level) : Number.POSITIVE_INFINITY;
 }
@@ -1703,7 +1724,8 @@ function eligibleNewWordsByStudyLevel(vocabulary, state, selectedTopics) {
   const all = availableNewWords(vocabulary, state, selectedTopics);
   const snapshot = studyLevelLearningSnapshot(vocabulary, state, selectedTopics);
   let maxRank = snapshot.unlockedNext ? snapshot.nextRank : snapshot.targetRank;
-  let words = all.filter(v => candidateTargetStudyLevelRank(v) <= maxRank);
+  let words = all.filter(v => candidateTargetStudyLevelRank(v) <= maxRank ||
+    (state.settings.includeUnclassified && candidateTargetStudyLevelRank(v) === UNCLASSIFIED_STUDY_RANK));
 
   // Do not jump to harder Study Level material merely because the next in-band sense
   // is temporarily waiting for prerequisite consolidation.
@@ -1773,6 +1795,8 @@ function selectNewWords(vocabulary, state, selectedTopics, count, seed) {
     bandQueues.set(rank, makeBandQueue(rank));
   }
 
+  if (state.settings.includeUnclassified) bandQueues.set(UNCLASSIFIED_STUDY_RANK, makeBandQueue(UNCLASSIFIED_STUDY_RANK));
+
   const target = snapshot.targetRank;
   const easier = [];
   for (let r = target - 1; r >= 0; r--) easier.push(r);
@@ -1782,6 +1806,7 @@ function selectNewWords(vocabulary, state, selectedTopics, count, seed) {
   if (snapshot.unlockedNext && snapshot.nextRank <= (snapshot.effectiveMaxRank ?? target)) {
     cycle = [target, target, ...easier, target, ...easier, snapshot.nextRank];
   }
+  if (state.settings.includeUnclassified) cycle.push(UNCLASSIFIED_STUDY_RANK);
   if (!cycle.length) cycle = [target];
 
   const picked = [];
@@ -1798,10 +1823,10 @@ function selectNewWords(vocabulary, state, selectedTopics, count, seed) {
   while (picked.length < count && safety++ < count * 30 + 200) {
     if (![...bandQueues.keys()].some(remainingInRank)) break;
     const desired = cycle[cursor++ % cycle.length];
-    if (desired <= maxRank && takeFromRank(desired)) continue;
+    if ((desired <= maxRank || (state.settings.includeUnclassified && desired === UNCLASSIFIED_STUDY_RANK)) && takeFromRank(desired)) continue;
     // If a scheduled band is exhausted, choose the nearest still-eligible band.
     const fallback = [...bandQueues.keys()]
-      .filter(r => r <= maxRank && remainingInRank(r))
+      .filter(r => (r <= maxRank || (state.settings.includeUnclassified && r === UNCLASSIFIED_STUDY_RANK)) && remainingInRank(r))
       .sort((a,b) => Math.abs(a-target)-Math.abs(b-target) || a-b)[0];
     if (fallback !== undefined) takeFromRank(fallback);
   }
@@ -3237,14 +3262,15 @@ function renderSettings() {
       <details class="settings-disclosure" data-settings-section="data" ${settingsOpenSection === 'data' ? 'open' : ''}>
         <summary><span><strong>Informazioni e dati</strong><small>Versione ${escapeHtml(KOTOBA_RELEASE.split('-')[0])} · Fonti e licenze</small></span><span class="disclosure-arrow" aria-hidden="true">⌄</span></summary>
         <div class="settings-disclosure-body">
-          <p class="field-help"><strong>Versione app:</strong> ${escapeHtml(KOTOBA_RELEASE.split('-')[0])}<br><strong>Dizionario:</strong> Kotoba Lexicon V4.2 · ${canonicalCount.toLocaleString('it-IT')} accezioni canoniche (${eligibleCount.toLocaleString('it-IT')} esercitabili (filtro M3)).<br><strong>Livelli:</strong> Essenziale, Base, Intermedio, Avanzato, Esperto. L'app è completamente offline e i dati restano in localStorage. <strong>HOLD:</strong> recuperi invariati rispetto alla 3.1.7.</p>
+          <p class="field-help"><strong>Versione app:</strong> ${escapeHtml(KOTOBA_RELEASE.split('-')[0])}<br><strong>Dizionario:</strong> Kotoba Lexicon V4.2 · ${canonicalCount.toLocaleString('it-IT')} accezioni canoniche (${eligibleCount.toLocaleString('it-IT')} esercitabili (filtro M3)).<br><strong>Livelli:</strong> Essenziale, Base, Intermedio, Avanzato, Esperto. L'app è completamente offline e i dati restano in localStorage. I livelli sono indicativi; alcune accezioni restano escluse in attesa di verifica.</p>
           <details class="kotoba-credits"><summary>Fonti e licenze del dizionario</summary>
       <p><strong>JMdict / EDRDG:</strong> grafie, letture e accezioni. © EDRDG e James W. Breen, CC BY-SA 4.0; dati selezionati e rielaborati per il progetto Kotoba Offline. Licenza: https://www.edrdg.org/edrdg/licence.html</p>
-      <p><strong>FreeDict italiano–giapponese:</strong> dati storici di origine Wiktionary/DBnary, CC BY-SA 3.0. https://freedict.org/</p>
+      <p><strong>FreeDict + WikDict italiano–giapponese:</strong> edizione 2025.11.23, curata da Karl Bartel; dati derivati da Wiktionary/DBnary, CC BY-SA 3.0. https://freedict.org/ · https://creativecommons.org/licenses/by-sa/3.0/</p>
       <p><strong>Wiktionary giapponese e italiano:</strong> consultazione semantica e verifiche editoriali; testi del dizionario non riprodotti letteralmente nelle nuove schede. CC BY-SA 4.0. https://it.wiktionary.org/ · https://ja.wiktionary.org/</p>
       <p><strong>Japanese WordNet / NICT:</strong> © 2009–2010 NICT, secondo la licenza originale. <strong>WordNet italiano / MultiWordNet:</strong> Pianta, Bentivogli e Girardi, 2002, CC BY 3.0. Le condizioni complete sono conservate nei file di licenza dell'app.</p>
       <p><strong>Dati didattici JLPT:</strong> Jonathan Waller e progetto yomitan-jlpt-vocab, CC BY 4.0 / CC BY-SA 4.0; i livelli sono indicativi e non ufficiali. <strong>Esempi P01–P03:</strong> frasi didattiche redatte per Kotoba Offline, senza riproduzione di definizioni protette.</p>
-      <p>Il dizionario viene aggiornato nelle nuove versioni dell'app e funziona senza connessione. Il corpus distribuito con questa versione incorpora 366 accezioni recuperate dagli HOLD. Per licenze e attribuzioni vedi anche il pacchetto di documentazione della versione 3.1.7.</p>
+      <p><strong>Frequenze per le stime di livello:</strong> University of Leeds Corpus, elaborazione di hingston, CC BY 2.5; dati mediati da jkindrix/japanese-language-data, FrequencyWords e OpenSubtitles, CC BY-SA 4.0. I livelli sono stime orientative, non elenchi JLPT ufficiali.</p>
+      <p>Le fonti e i riferimenti delle accezioni aggiunte sono documentati nei file di attribuzione inclusi nel pacchetto. Il dizionario funziona senza connessione.</p>
       </details>
           <button class="btn danger-outline" data-action="open-reset">Resetta progressi</button>
         </div>
@@ -3783,7 +3809,7 @@ function renderSession() {
       <div class="jp-hero">${vocab.japanese}</div>
       ${containsKanji(vocab.japanese) ? `<div class="kana">${escapeHtml(displayReading(vocab))}</div>` : (vocab.kana ? `<div class="kana">${escapeHtml(displayReading(vocab))}</div>` : '')}
       <div class="meaning">${escapeHtml(jishoDisplayMeaning(vocab))}</div>
-      <div class="learn-meta-row"><span class="jlpt-badge">${escapeHtml(`${studyLevelLabel(vocab.studyLevel)} · ${studyLevelReference(vocab.studyLevel)}`)}</span><span>${escapeHtml(topicLabel(vocab.topics.find(t => state.settings.selectedTopics.includes(t)) || vocab.topics.find(t => t !== 'freedict_completo') || vocab.topics[0]))}</span>${usageRegisterBadgeHtml(vocab)}</div>
+      <div class="learn-meta-row"><span class="jlpt-badge">${escapeHtml(vocabularyStudyLevel(vocab) ? `${studyLevelLabel(vocab.studyLevel)} · ${studyLevelReference(vocab.studyLevel)}` : 'Livello non classificato')}</span><span>${escapeHtml(topicLabel(vocab.topics.find(t => state.settings.selectedTopics.includes(t)) || vocab.topics.find(t => t !== 'freedict_completo') || vocab.topics[0]))}</span>${usageRegisterBadgeHtml(vocab)}</div>
       ${vocab.senseLabelItalian || vocab.senseNoteItalian ? `<div class="sense-box">${vocab.senseLabelItalian ? `<p class="sense-label">${escapeHtml(vocab.senseLabelItalian)}</p>` : ''}${vocab.senseNoteItalian ? `<p class="sense-note">${escapeHtml(vocab.senseNoteItalian)}</p>` : ''}</div>` : ''}
       ${usageRegisterNoteHtml(vocab)}
       ${vocab.exampleJapanese && vocab.exampleItalian ? `<div class="kotoba-example" aria-label="Frase di esempio"><p class="kotoba-example-jp" lang="ja">${escapeHtml(vocab.exampleJapanese)}</p><p class="kotoba-example-it">${escapeHtml(vocab.exampleItalian)}</p></div>` : ''}
@@ -3814,6 +3840,7 @@ function renderSession() {
       ${usageRegisterFeedbackHtml(vocab)}
       ${feedback.validOtherSense ? `<p class="field-help">Risposta valida${feedback.matchedAlternative?.japanese ? ': '+escapeHtml(feedback.matchedAlternative.japanese)+(feedback.matchedAlternative.kana ? '（'+escapeHtml(feedback.matchedAlternative.kana)+'）' : '') : ''}. Anche ${escapeHtml(vocab.japanese)}${vocab.kana ? '（'+escapeHtml(displayReading(vocab))+'）' : ''} è possibile per la domanda mostrata. La scheda specifica non avanza nell’SRS.</p>` : ''}
       ${feedback.ambiguousTargetMatch ? '<p class="field-help">Risposta corretta, ma condivisa da più voci: nessun progresso SRS attribuito arbitrariamente.</p>' : ''}
+      ${feedback.contextualTargetMatch ? '<p class="field-help">Risposta valida in alcuni contesti: senza un contesto specifico non viene attribuito avanzamento a questa accezione.</p>' : ''}
       ${feedback.jishoAssisted ? '<p class="field-help">Hai consultato Jisho: questa risposta non modifica la padronanza SRS.</p>' : ''}
       ${extraItalianLabel ? `<p class="field-help">Altre traduzioni accettate per questa forma: ${escapeHtml(extraItalianLabel)}</p>` : ''}
       <button class="btn primary wide" data-action="question-continue">Continua</button>
@@ -3970,6 +3997,7 @@ function submitAnswer(answer, forcedResult = null, gaveUp = false) {
     jishoAssisted: Boolean(item.jishoConsulted),
     validOtherSense: Boolean(checked.validOtherSense),
     ambiguousTargetMatch: Boolean(checked.ambiguousTargetMatch),
+    contextualTargetMatch: Boolean(checked.contextualTargetMatch),
     sessionMode: runtime?.mode || 'daily',
     source: item.source || null,
     timestamp: now.toISOString(),
@@ -4005,6 +4033,7 @@ function submitAnswer(answer, forcedResult = null, gaveUp = false) {
   feedback = { result: checked.result, answer: String(answer),
     validOtherSense: Boolean(checked.validOtherSense),
     ambiguousTargetMatch: Boolean(checked.ambiguousTargetMatch),
+    contextualTargetMatch: Boolean(checked.contextualTargetMatch),
     matchedAlternative: checked.matchedAlternative || null,
     jishoAssisted: Boolean(item.jishoConsulted) };
   persistActiveSession();

@@ -1,5 +1,5 @@
 /* Kotoba offline-first: retain previous caches until the new package is complete. */
-const VERSION='3.1.16-settings-navigation-20261113';
+const VERSION='3.1.17-m2-levels-20261116';
 const CACHE='kotoba-shell-'+VERSION;
 const ASSETS=[
  './','./index.html','./styles.css','./desktop.css','./bootstrap.js','./app.js','./manifest.webmanifest',
@@ -8,7 +8,8 @@ const ASSETS=[
  './licenses/JAPANESE_WORDNET_NICT_LICENSE.txt','./licenses/JLPT_DATA.txt','./licenses/LEXICAL_SOURCES_2.7.6.txt',
  './licenses/MULTIWORDNET_IT_CC_BY_3.0.txt','./licenses/KOTOBA_3_1_6_SOURCES_AND_ATTRIBUTIONS.txt',
  './licenses/KOTOBA_3_1_7_PRIORITY_SOURCE_NOTE.txt','./licenses/KOTOBA_3_1_8_EXPERIENCE_NOTICE.txt',
- './licenses/KOTOBA_3_1_9_PORTABILITY.txt'
+ './licenses/KOTOBA_3_1_9_PORTABILITY.txt',
+ './licenses/KOTOBA_3_1_17_M2_PROVA_SOURCES.txt','./licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json','./licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt','./licenses/LICENSE-CC-BY-SA-4.0.txt'
 ];
 self.addEventListener('install',event=>{
   // No skipWaiting: an update must never replace the files mid-session.
