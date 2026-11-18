@@ -1,6 +1,6 @@
 /* Kotoba offline-first: atomic pre-cache, keep previous active cache on failure. */
 /* Staging fix for 3.1.17; not a public release. */
-const VERSION='3.1.17-offline-preflight-20261118';
+const VERSION='3.1.17-license-recovery-20261118';
 const CACHE='kotoba-shell-'+VERSION;
 const ASSETS=[
   "./",
@@ -23,8 +23,13 @@ const ASSETS=[
   "./licenses/MULTIWORDNET_IT_CC_BY_3.0.txt",
   "./licenses/KOTOBA_3_1_6_SOURCES_AND_ATTRIBUTIONS.txt",
   "./licenses/KOTOBA_3_1_7_PRIORITY_SOURCE_NOTE.txt",
-  "./licenses/KOTOBA_3_1_8_EXPERIENCE_NOTICE.txt"
-];
+  "./licenses/KOTOBA_3_1_8_EXPERIENCE_NOTICE.txt",
+  "./licenses/KOTOBA_3_1_9_PORTABILITY.txt",
+  "./licenses/KOTOBA_3_1_17_M2_PROVA_SOURCES.txt",
+  "./licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json",
+  "./licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt",
+  "./licenses/LICENSE-CC-BY-SA-4.0.txt"
+]
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
