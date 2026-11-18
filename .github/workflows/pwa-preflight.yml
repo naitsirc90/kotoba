@@ -1,0 +1,44 @@
+name: PWA offline and lexical preflight
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - maintenance/kotoba-20261118
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JMdict audit script syntax
+        run: python -m py_compile scripts/check-jmdict-current.py
+      - name: Check JavaScript syntax
+        run: |
+          node --check sw.js
+          node --check bootstrap.js
+          node --check app.js
+      - name: Verify offline shell and lexical IDs
+        run: node scripts/check-pwa-preflight.cjs
+
+  browser-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser test dependencies
+        run: |
+          npm install --no-save --no-package-lock playwright@1.61.0
+          npx playwright install --with-deps chromium
+      - name: Test first-install offline reload and IndexedDB continuity
+        run: node scripts/test-pwa-offline.cjs

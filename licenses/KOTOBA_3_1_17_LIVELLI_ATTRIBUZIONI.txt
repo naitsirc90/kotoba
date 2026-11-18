@@ -1,0 +1,21 @@
+Kotoba Offline 3.1.17 — attribuzione delle fonti utilizzate per i livelli indicativi
+
+Jonathan Waller, JLPT Resources, dati orientativi con attribuzione Creative Commons BY:
+http://www.tanos.co.uk/jlpt/ ; riordino e integrazione con JMdict: Stephen Kraus,
+yomitan-jlpt-vocab, CC BY-SA 4.0, https://github.com/stephenmk/yomitan-jlpt-vocab .
+Le liste non sono elenchi ufficiali JLPT.
+
+University of Leeds Corpus, lista di frequenza giapponese, elaborazione e pulizia di
+hingston, https://github.com/hingston/japanese ; licenza dichiarata CC BY 2.5:
+http://corpus.leeds.ac.uk/frqc/internet-jp.num e https://creativecommons.org/licenses/by/2.5/ .
+
+FrequencyWords, elenchi di frequenza derivati da OpenSubtitles:
+https://github.com/hermitdave/FrequencyWords ; contenuti CC BY-SA 4.0:
+https://creativecommons.org/licenses/by-sa/4.0/ .
+Dati di frequenza mediati da jkindrix/japanese-language-data, CC BY-SA 4.0:
+https://github.com/jkindrix/japanese-language-data .
+
+I dati lessicali sottostanti mantengono gli avvisi JMdict, FreeDict, Wiktionary,
+Japanese WordNet e MultiWordNet nella presente cartella. Le stime didattiche Kotoba
+sono derivate da queste evidenze e da dati già presenti nel progetto; non costituiscono
+certificazione ufficiale del livello dei singoli significati.

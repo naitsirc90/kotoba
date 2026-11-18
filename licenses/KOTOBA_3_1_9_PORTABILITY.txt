@@ -1,0 +1,1 @@
+Kotoba 3.1.9 - offline-only APK; portable progress files in versioned JSON schema; corpus canonical-only with historical ID compatibility map. No cloud synchronization.
