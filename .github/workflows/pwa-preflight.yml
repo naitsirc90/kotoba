@@ -3,6 +3,7 @@ on:
   pull_request:
   push:
     branches:
+      - main
       - maintenance/kotoba-20261118
   workflow_dispatch:
 
