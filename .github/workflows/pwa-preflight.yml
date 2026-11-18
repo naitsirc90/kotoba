@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check JMdict audit script syntax
+        run: python -m py_compile scripts/check-jmdict-current.py
       - name: Check JavaScript syntax
         run: |
           node --check sw.js
