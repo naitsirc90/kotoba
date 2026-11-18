@@ -24,3 +24,18 @@ jobs:
           node --check app.js
       - name: Verify offline shell and lexical IDs
         run: node scripts/check-pwa-preflight.cjs
+
+  browser-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser test dependencies
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.1
+          npx playwright install --with-deps chromium
+      - name: Test first-install offline reload and IndexedDB continuity
+        run: node scripts/test-pwa-offline.cjs
