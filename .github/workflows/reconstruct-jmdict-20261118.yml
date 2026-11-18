@@ -1,0 +1,72 @@
+name: Reconstruct pinned JMdict legacy from daily mirror
+on:
+  push:
+    branches:
+      - maintenance/jmdict-20261118
+
+permissions:
+  contents: read
+
+jobs:
+  reconstruct:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq brotli patch
+      - name: Get Jitendex archival source (do not use original FTP during outage)
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/Jitendex/edrdg-dictionary-archive.git "$RUNNER_TEMP/edrdg"
+          git -C "$RUNNER_TEMP/edrdg" rev-parse HEAD | tee "$RUNNER_TEMP/archive-commit.txt"
+          echo "ARCHIVE_PATCH_COUNT=$(find "$RUNNER_TEMP/edrdg/JMdict_e/patches" -name '*.patch.br' | wc -l)"
+          echo "LATEST_PATCH=$(find "$RUNNER_TEMP/edrdg/JMdict_e/patches" -name '*.patch.br' | sort | tail -n 1)"
+      - name: Reconstruct exact upstream XML using base and every chronological patch
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/kotoba-jmdict"
+          base="$RUNNER_TEMP/edrdg/JMdict_e"
+          out="$RUNNER_TEMP/kotoba-jmdict/JMdict_e"
+          brotli -d -c "$base/JMdict_e.br" > "$out"
+          count=0
+          while IFS= read -r p; do
+            brotli -d -c "$p" | patch --silent --batch "$out"
+            count=$((count+1))
+            if [ $((count % 50)) -eq 0 ]; then echo "Applied $count patches"; fi
+          done < <(find "$base/patches" -type f -name '*.patch.br' | LC_ALL=C sort)
+          echo "Applied $count patches."
+          test "$count" -ge 300
+          grep -q '<JMdict>' "$out"
+          python3 - "$out" "$RUNNER_TEMP/archive-commit.txt" <<'PY'
+          import datetime,hashlib,json,pathlib,re,sys
+          p=pathlib.Path(sys.argv[1])
+          sha=hashlib.sha256(p.read_bytes()).hexdigest()
+          b=p.read_bytes()
+          seq=re.findall(rb'<ent_seq>\s*(\d+)\s*</ent_seq>',b)
+          if len(seq)<200000 or len(set(seq)) != len(seq):
+              raise SystemExit('JMdict invalid or duplicate ent_seq: '+str(len(seq)))
+          doc={'archive_commit':pathlib.Path(sys.argv[2]).read_text().strip(),
+               'format':'legacy JMdict_e (XML, reconstructed from Jitendex EDRDG archive)',
+               'xml_sha256':sha, 'xml_bytes':len(b),'entry_count':len(seq),
+               'fetch_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+               'source':'https://github.com/Jitendex/edrdg-dictionary-archive',
+               'source_file':'JMdict_e','fidelity':'all archived patches applied in order',
+               'is_original_EDRDG_gzip':False}
+          print(json.dumps(doc,indent=2))
+          (p.parent/'JMdict-source-manifest.json').write_text(json.dumps(doc,indent=2))
+          PY
+          gzip -n -9 -c "$out" > "$out.gz"
+          sha256sum "$out.gz"
+          rm "$out"
+      - name: Upload short-lived input for current Kotoba maintenance only
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotoba-jmdict-reconstructed-20261118
+          path: |
+            ${{ runner.temp }}/kotoba-jmdict/JMdict_e.gz
+            ${{ runner.temp }}/kotoba-jmdict/JMdict-source-manifest.json
+          if-no-files-found: error
+          retention-days: 1
