@@ -1,0 +1,28 @@
+Kotoba Offline 3.1.17 — copia privata di prova M2, 16 novembre 2026
+
+I dati di origine rimangono attribuiti secondo le licenze e gli avvisi
+preesistenti, inclusi in questa cartella. La copia di prova seleziona e adatta
+accezioni già presenti nel database canonico; le schede non verificate per il
+quiz restano escluse. È stata corretta una traduzione sulla base della fonte
+congelata; la decisione precedente è conservata nel database di progetto.
+
+FreeDict + WikDict, ita-jpn, edizione 2025.11.23, curatore Karl Bartel;
+dati derivati da Wiktionary attraverso DBnary; CC BY-SA 3.0 Unported:
+https://freedict.org/ — https://creativecommons.org/licenses/by-sa/3.0/
+
+JMdict, Electronic Dictionary Research and Development Group (EDRDG) e
+James W. Breen, CC BY-SA 4.0:
+https://www.edrdg.org/edrdg/licence.html
+https://creativecommons.org/licenses/by-sa/4.0/
+
+Wiktionary italiano e giapponese, fonti consultate per le verifiche:
+https://it.wiktionary.org/ — https://ja.wiktionary.org/
+CC BY-SA 4.0: https://creativecommons.org/licenses/by-sa/4.0/
+KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json associa alle singole identità
+revisionate le pagine e le relative cronologie delle fonti consultate.
+La presenza di un riferimento non implica da sola una copia del suo testo.
+
+Restano applicabili gli altri crediti e le altre licenze incluse, in
+particolare quelle di Japanese WordNet/NICT e MultiWordNet italiano.
+Questo avviso non attesta da solo la completa conformità di redistribuzione;
+la verifica delle fonti di ogni contenuto è ancora in corso.
