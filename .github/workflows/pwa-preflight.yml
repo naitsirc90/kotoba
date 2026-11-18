@@ -35,7 +35,7 @@ jobs:
           node-version: '22'
       - name: Install isolated browser test dependencies
         run: |
-          npm install --no-save --no-package-lock playwright@1.55.1
+          npm install --no-save --no-package-lock playwright@1.61.0
           npx playwright install --with-deps chromium
       - name: Test first-install offline reload and IndexedDB continuity
         run: node scripts/test-pwa-offline.cjs
