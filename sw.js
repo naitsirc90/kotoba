@@ -29,7 +29,7 @@ const ASSETS=[
   "./licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json",
   "./licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt",
   "./licenses/LICENSE-CC-BY-SA-4.0.txt"
-]
+ ];
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
