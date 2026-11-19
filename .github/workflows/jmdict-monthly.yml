@@ -3,6 +3,12 @@ on:
   schedule:
     - cron: '10 6 1 * *'
   workflow_dispatch:
+  push:
+    branches:
+      - maintenance/jmdict-20261118
+    paths:
+      - 'scripts/reconstruct-jmdict-mirror.sh'
+      - '.github/workflows/jmdict-monthly.yml'
 
 permissions:
   contents: read
@@ -10,11 +16,31 @@ permissions:
 jobs:
   source-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Download official JMdict and compare current distribution coverage
-        run: python scripts/check-jmdict-current.py
+      - name: Retrieve EDRDG upstream, with pinned mirror fallback on network failures
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/jmdict"
+          if curl -fLsS --retry 1 --connect-timeout 7 --max-time 55 \
+             'https://ftp.edrdg.org/pub/Nihongo/JMdict_e.gz' \
+             -o "$RUNNER_TEMP/jmdict/JMdict_e.gz"; then
+            echo 'SOURCE=EDRDG_OFFICIAL_FTP' >> "$GITHUB_ENV"
+          else
+            echo 'Direct EDRDG download unavailable: reconstructing public archived patches'
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq brotli patch
+            bash scripts/reconstruct-jmdict-mirror.sh "$RUNNER_TEMP/jmdict"
+            echo 'SOURCE=JITENDEX_EDRDG_RECONSTRUCTION' >> "$GITHUB_ENV"
+          fi
+          gzip -t "$RUNNER_TEMP/jmdict/JMdict_e.gz"
+      - name: Verify source and Kotoba compatibility (report only, NO deployment)
+        run: |
+          python scripts/check-jmdict-current.py --current-gz "$RUNNER_TEMP/jmdict/JMdict_e.gz"
+          echo "JMdict source: $SOURCE"
+          echo 'NOTE: updated source is not an updated application release; editorial delta review and release QA required.'
