@@ -18,7 +18,8 @@ ID_RE = re.compile(r"jmdict-\d+-\d+")
 ID_KEYS = ("canonical_id", "kotoba_id", "stable_id", "sense_id", "identity_id", "id")
 CONTEXT_TABLES = ("k_jmdict_current_sense", "k_sense",
                   "op5c_coverage", "m3_operational_eligibility")
-ALLOWED_CLASSES = ("CONTENT_CHANGE", "INDEX_MOVED", "INDEX_MISSING", "UNCLASSIFIED")
+EDITORIAL_TABLES = ("senses", "decisions", "k_sense_example", "k_sense_topic")
+ALLOWED_CLASSES = ("CONTENT_CHANGE", "INDEX_MOVED", "INDEX_UNAVAILABLE", "INDEX_MISSING", "UNCLASSIFIED")
 
 def quote_identifier(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
@@ -46,18 +47,37 @@ def stable_ids(row: dict) -> list[str]:
     return sorted(set(ID_RE.findall(raw)))
 
 def classify(row: dict) -> str:
-    # Diagnostic only. Classification does not authorize any editorial changes.
+    """Use the actual canonical comparison_status before heuristic fallbacks."""
+    explicit = str(row.get("comparison_status", "")).strip().upper()
+    if explicit in ALLOWED_CLASSES:
+        return explicit
     candidates = " ".join(str(row.get(k, "")) for k in
         ("change_type", "change_kind", "status", "category", "reason", "kind", "classification")).lower()
     if any(x in candidates for x in ("index_missing", "missing_index", "source_index_missing",
                                      "sense_removed", "index_absent", "no_longer_exists")):
-        return "INDEX_MISSING"
+        return "INDEX_UNAVAILABLE"
     if any(x in candidates for x in ("moved", "shift", "reindexed", "index_changed", "index_moved")):
         return "INDEX_MOVED"
     if any(x in candidates for x in ("content", "gloss_changed", "semantic", "meaning_changed",
                                      "source_changed", "modified")):
         return "CONTENT_CHANGE"
     return "UNCLASSIFIED"
+
+def source_risk_bucket(row: dict) -> str:
+    """A triage category ONLY: no automatic semantic acceptance or study activation."""
+    status = classify(row)
+    fields = maybe_json(row.get("changed_fields_json"))
+    if not isinstance(fields, list) or not all(isinstance(f, str) for f in fields):
+        return "UNPARSED_CHANGE_FIELDS_REVIEW"
+    if status in ("INDEX_MOVED", "INDEX_UNAVAILABLE", "INDEX_MISSING"):
+        return "IDENTITY_INDEX_MAPPING_REVIEW"
+    if "gloss" in fields:
+        return "ITALIAN_GLOSS_SEMANTIC_REVIEW"
+    if "stagr" in fields or "stagk" in fields:
+        return "READING_OR_WRITING_SCOPE_REVIEW"
+    if status == "CONTENT_CHANGE" and fields and set(fields) <= {"xref", "lsource"}:
+        return "SOURCE_METADATA_ONLY_CANDIDATE"
+    return "POS_REGISTER_DOMAIN_OR_USAGE_REVIEW"
 
 def source_context(connection: sqlite3.Connection, table: str, stable_id: str):
     if not stable_id:
@@ -71,7 +91,7 @@ def source_context(connection: sqlite3.Connection, table: str, stable_id: str):
                 return [{k: maybe_json(r[k]) for k in r.keys()} for r in rows]
     return []
 
-def audit(db_path: str, *, expected=92, source_sha=None) -> dict:
+def audit(db_path: str, *, expected=92, source_sha=None, include_editorial=False) -> dict:
     con = sqlite3.connect(f"file:{pathlib.Path(db_path).resolve()}?mode=ro", uri=True)
     con.row_factory = sqlite3.Row
     try:
@@ -87,27 +107,39 @@ def audit(db_path: str, *, expected=92, source_sha=None) -> dict:
         rows = [dict(r) for r in con.execute("SELECT * FROM k_jmdict_change")]
         if len(rows) != expected:
             raise RuntimeError(f"JMdict change rows {len(rows)} != expected {expected}; verify source snapshot")
+        if include_editorial and not {"senses", "decisions"} <= names:
+            raise RuntimeError("Editorial tables senses and decisions are required for full review")
         counters = collections.Counter()
+        risk_counts = collections.Counter()
+        enabled_counts = collections.Counter()
         cases = []
         for no, row in enumerate(rows, 1):
             ids = stable_ids(row)
             cid = ids[0] if len(ids)==1 else None
             status = "ID_UNIQUE" if len(ids)==1 else ("ID_MISSING" if not ids else "ID_AMBIGUOUS")
             change_class = classify(row)
+            risk_bucket = source_risk_bucket(row)
             counters[(status, change_class)] += 1
+            risk_counts[risk_bucket] += 1
             context = {}
             if cid:
-                for table in CONTEXT_TABLES:
+                for table in CONTEXT_TABLES + (EDITORIAL_TABLES if include_editorial else ()):
                     if table in names:
                         context[table] = source_context(con, table, cid)
+            study_flags = [int(r.get("study_enabled") or 0) for r in context.get("k_sense", [])]
+            study_gate = ("CURRENTLY_ENABLED_PRESERVE_NOT_REVALIDATED" if study_flags == [1]
+                          else "CURRENTLY_DISABLED_DO_NOT_AUTO_ENABLE" if study_flags == [0]
+                          else "STUDY_GATE_REQUIRES_MANUAL_REVIEW")
+            enabled_counts[study_gate] += 1
             cases.append({
                 "case_no": no,
                 "canonical_id": cid,
                 "id_candidates": ids,
                 "identity_status": status,
                 "change_class_hint": change_class,
+                "source_risk_bucket": risk_bucket,
                 "review_status": "REVIEW_REQUIRED",
-                "study_gate": "NOT_EVALUATED",
+                "study_gate": study_gate,
                 "source_row": {k: maybe_json(v) for k,v in row.items()},
                 "canonical_context": context,
                 "safety_note": "Do not automatically relabel, enable HOLD, change translation or renumber ID."
@@ -122,6 +154,10 @@ def audit(db_path: str, *, expected=92, source_sha=None) -> dict:
             "source_columns": columns(con, "k_jmdict_change"),
             "context_tables": {t: columns(con, t) for t in CONTEXT_TABLES if t in names},
             "status_counts": {f"{a}:{b}":n for (a,b),n in sorted(counters.items())},
+            "source_risk_counts": dict(sorted(risk_counts.items())),
+            "study_flag_counts": dict(sorted(enabled_counts.items())),
+            "editorial_context_included": bool(include_editorial),
+            "editorial_context_caveat": "Current Italian and decision records do not replace a comparison with the previous JMdict source payload.",
             "cases": cases,
             "release_gate": "Mapping source is not study activation; each sense requires existing M2/M3/OP5C eligibility plus editorial validation."
         }
@@ -134,8 +170,11 @@ def main():
     p.add_argument("--out",help="Local report path (no persistent backup created unless requested)")
     p.add_argument("--expected",type=int,default=92)
     p.add_argument("--source-sha",help="Expected XML SHA-256 of frozen source")
+    p.add_argument("--include-editorial-context", action="store_true",
+                   help="Locally export reviewed Italian senses, decisions and usage links for semantic review. Do NOT upload to public GitHub.")
     args=p.parse_args()
-    report=audit(args.db,expected=args.expected,source_sha=args.source_sha)
+    report=audit(args.db,expected=args.expected,source_sha=args.source_sha,
+                 include_editorial=args.include_editorial_context)
     out=json.dumps(report,ensure_ascii=False,indent=2,default=str)
     if args.out:
         pathlib.Path(args.out).write_text(out,encoding="utf-8")
