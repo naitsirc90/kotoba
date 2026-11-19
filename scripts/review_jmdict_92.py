@@ -14,7 +14,7 @@ import re
 import sqlite3
 import sys
 
-ID_RE = re.compile(r"jmdict-\\d+-\\d+")
+ID_RE = re.compile(r"jmdict-\d+-\d+")
 ID_KEYS = ("canonical_id", "kotoba_id", "stable_id", "sense_id", "identity_id", "id")
 CONTEXT_TABLES = ("k_jmdict_current_sense", "k_sense",
                   "op5c_coverage", "m3_operational_eligibility")
