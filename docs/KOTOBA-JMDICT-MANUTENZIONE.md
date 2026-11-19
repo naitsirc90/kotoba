@@ -27,6 +27,26 @@ Aggiornato: 19 novembre 2026 · Applicabilità: versione canonica Drive con SHA-
 - I 92 casi **sono sensi già presenti nel canonico**, non 92 nuovi lemmi automaticamente aggiungibili.
 - Un sorgente del 19/11/2026 è già risultato diverso: valutare il delta temporale **prima** della prossima release; non sostituire silenziosamente il riferimento del 18/11.
 
+### Estrarre i 92 record reali senza modificare SQLite
+
+Nel notebook Colab corrente eseguire prima **Fase 10A** (ricostruzione, hash e test del canonico Drive). Poi, in una cella:
+
+```python
+import urllib.request, subprocess, sys
+src = 'https://raw.githubusercontent.com/naitsirc90/kotoba/main/scripts/review_jmdict_92.py'
+review_script = ROOT_K / 'review_jmdict_92.py'
+urllib.request.urlretrieve(src, review_script)
+review_report = ROOT_K / 'JMDICT-92-RAPPORTO-REVISIONE-CORRENTE.json'
+subprocess.run([
+    sys.executable, str(review_script), '--db', str(db),
+    '--source-sha', '02c51639a138cfd874683b368f651d2d5a4108bf0054712c63913f3b25eef2a0',
+    '--out', str(review_report),
+], check=True)
+print('Rapporto locale dei 92 sensi:', review_report)
+```
+
+L'estrattore non modifica la copia locale né quella Drive: esporta per ciascuna riga la struttura reale, gli ID rintracciabili e le informazioni associate, senza dichiarare che tutti siano studiabili. Esaminare integralmente questo rapporto prima di applicare modifiche semantiche. Non caricarlo su repository pubblico se contiene dati editoriali non ancora divulgati.
+
 ## 3. Criteri rigorosi per allineare i 92
 1. Ricavare le 92 righe da `k_jmdict_change`, verificando che gli ID siano univoci e siano riferiti a `k_jmdict_current_sense` e a un'identità canonica.
 2. Per ogni caso conservare: `canonical_id` immutato, `ent_seq`, indice sorgente precedente, indice corrente, parole/scritture, lettura (in hiragana), parti del discorso, gloss originale, gloss corrente, traduzione italiana revisionata, decisione editoriale e SHA delle evidenze.
