@@ -20,6 +20,10 @@ jobs:
           node-version: '22'
       - name: Check JMdict audit script syntax
         run: python -m py_compile scripts/check-jmdict-current.py
+      - name: Check 92-case read-only audit and synthetic schema tests
+        run: |
+          python -m py_compile scripts/review_jmdict_92.py
+          python -m unittest discover -s tests -p test_jmdict_92.py -v
       - name: Check JavaScript syntax
         run: |
           node --check sw.js
