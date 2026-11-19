@@ -40,12 +40,31 @@ review_report = ROOT_K / 'JMDICT-92-RAPPORTO-REVISIONE-CORRENTE.json'
 subprocess.run([
     sys.executable, str(review_script), '--db', str(db),
     '--source-sha', '02c51639a138cfd874683b368f651d2d5a4108bf0054712c63913f3b25eef2a0',
+    '--include-editorial-context',  # dati IT/decisioni, solo nella sessione Colab personale
     '--out', str(review_report),
 ], check=True)
 print('Rapporto locale dei 92 sensi:', review_report)
 ```
 
 L'estrattore non modifica la copia locale né quella Drive: esporta per ciascuna riga la struttura reale, gli ID rintracciabili e le informazioni associate, senza dichiarare che tutti siano studiabili. Esaminare integralmente questo rapporto prima di applicare modifiche semantiche. Non caricarlo su repository pubblico se contiene dati editoriali non ancora divulgati.
+
+### Esito del rapporto locale del 19 novembre 2026 (92/92)
+Il rapporto `KOTOBA_JMDICT_92_REVIEW_V1` del 19 novembre ha identificato **92 ID univoci**, tutti già presenti nel canonico: **62 schede con `study_enabled=1` e 30 con `study_enabled=0`**. I flag esistenti non sono stati modificati. Per 29 dei 30 casi esclusi non compare copertura OP5C nel rapporto; il trentesimo (`jmdict-2815550-3`) presenta un gate esplicito di esclusione. **La presenza di un nuovo gloss JMdict non autorizza lo sblocco.**
+
+| Categoria di triage (non equivale ad approvazione) | Casi | Già studiabili |
+|---|---:|---:|
+| Gloss modificato, richiede confronto semantico con italiano e vecchia fonte | 65 | 47 |
+| Indice spostato o non disponibile: ricostruire ancoraggio di identità | 6 | 4 |
+| Restrizione di lettura `stagr` cambiata | 2 | 0 |
+| Solo riferimento `xref` o etimologia `lsource` modificati: **candidati** a riallineamento dei metadati sorgente | 8 | 5 |
+| POS, registro, uso o dominio senza gloss modificato | 11 | 6 |
+| **Totale** | **92** | **62** |
+
+**Sei casi d'indice con priorità alta:** `jmdict-1050590-2`, `jmdict-1050590-3` (copia; non studiabili), `jmdict-1362640-8` (深い), `jmdict-1385900-4` e `jmdict-1385900-5` (折り返す), `jmdict-1397620-2` (組合). Gli ultimi quattro sono *già abilitati* ma hanno un riferimento storico non più rintracciabile all'indice corrente. Per `jmdict-1050590-3`, il nuovo hash del senso coincide con l'hash precedente di `jmdict-1050590-2`, indizio di rinumerazione da validare, **non** licenza di rinominare un ID stabile.
+
+Il rapporto originale esportato non includeva il testo della traduzione italiana né il contenuto pre-update dei sensi JMdict, solo hash e nuova fonte. L'estrattore GitHub è stato corretto per leggere `comparison_status` reale (in precedenza tutti i record risultavano `UNCLASSIFIED`). L'opzione locale `--include-editorial-context` aggiunge `senses`, `decisions`, collegamenti a esempi e temi se disponibili. Il report viene **sovrascritto nello stesso percorso locale** e non va copiato sul repository pubblico; non è un archivio di backup.
+
+I soli 8 candidati con variazioni `xref/lsource` possono essere verificati *a livello di metadato* senza ritraduzione, ma necessitano comunque di controllo della fonte precedente, coerenza degli ancoraggi e integrità. Le 65 variazioni di gloss non vanno certificate senza l'italiano revisionato e il vecchio gloss. Nessun cambio a `study_enabled`, ID stabili, esempio, livello o progressi è consentito sulla base del rapporto 92 da solo.
 
 ## 3. Criteri rigorosi per allineare i 92
 1. Ricavare le 92 righe da `k_jmdict_change`, verificando che gli ID siano univoci e siano riferiti a `k_jmdict_current_sense` e a un'identità canonica.
