@@ -55,7 +55,7 @@ def classify(row: dict) -> str:
         ("change_type", "change_kind", "status", "category", "reason", "kind", "classification")).lower()
     if any(x in candidates for x in ("index_missing", "missing_index", "source_index_missing",
                                      "sense_removed", "index_absent", "no_longer_exists")):
-        return "INDEX_UNAVAILABLE"
+        return "INDEX_MISSING"
     if any(x in candidates for x in ("moved", "shift", "reindexed", "index_changed", "index_moved")):
         return "INDEX_MOVED"
     if any(x in candidates for x in ("content", "gloss_changed", "semantic", "meaning_changed",
@@ -126,7 +126,8 @@ def audit(db_path: str, *, expected=92, source_sha=None, include_editorial=False
                 for table in CONTEXT_TABLES + (EDITORIAL_TABLES if include_editorial else ()):
                     if table in names:
                         context[table] = source_context(con, table, cid)
-            study_flags = [int(r.get("study_enabled") or 0) for r in context.get("k_sense", [])]
+            study_flags = [int((r.get("study_enabled") if "study_enabled" in r else r.get("studyEnabled")) or 0)
+                           for r in context.get("k_sense", [])]
             study_gate = ("CURRENTLY_ENABLED_PRESERVE_NOT_REVALIDATED" if study_flags == [1]
                           else "CURRENTLY_DISABLED_DO_NOT_AUTO_ENABLE" if study_flags == [0]
                           else "STUDY_GATE_REQUIRES_MANUAL_REVIEW")
