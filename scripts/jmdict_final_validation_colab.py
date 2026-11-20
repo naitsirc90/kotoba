@@ -603,7 +603,9 @@ def main():
                              and old_members[name]!=new_members[name]
                              and name!=ZIP_DB
                              and "JMDICT-" not in name.upper()]
-            members_preserved = not missing_members and not changed_members
+            manifest_member="KOTOBA-CANONICO/04-DOCUMENTAZIONE/MANIFEST-CANONICO.json"
+            changed_unexpected=[name for name in changed_members if name!=manifest_member]
+            members_preserved = not missing_members and not changed_unexpected
             if not members_preserved:
                 print("DIFFERENZE NEI FILE ZIP:", len(missing_members),
                       "mancanti,", len(changed_members), "modificati", flush=True)
@@ -612,6 +614,7 @@ def main():
                 "members_preserved":members_preserved,
                 "missing_members":missing_members,
                 "changed_members":changed_members,
+                "unexpected_changed_members":changed_unexpected,
                 "added_members":added_members,"manifest_comparison":manifest_diff}
         blocked=[x['stable_id'] for x in cases if x['editorial_resolution']['status'] not in ('SOURCE_INDEX_VERIFIED','LEGACY_UNLINKED_AND_PRESERVED')]
         final={
