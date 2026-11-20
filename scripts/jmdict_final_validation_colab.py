@@ -279,49 +279,192 @@ def semantic_cases(report, senses):
         fail("Dovrebbero esserci 23 casi bloccanti, trovati "+str(len(results)))
     return results
 
-def tables_preserved(old_db,new_db):
-    def open_ro(p):
-        c=sqlite3.connect("file:"+str(p)+"?mode=ro",uri=True)
-        c.row_factory=sqlite3.Row
-        return c
-    old=open_ro(old_db);new=open_ro(new_db)
-    def names(c):
-        return {x[0] for x in c.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
-    def rows_fingerprint(c,name):
-        # Order-independent row multiset fingerprint; blobs are SHA-256 compressed in the row encoding.
-        q='"'+name.replace('"','""')+'"'
-        xorval=0;sumval=0;n=0
-        try:
-            rows=c.execute("SELECT * FROM "+q)
-            for row in rows:
-                vals=[]
-                for x in row:
-                    if isinstance(x,bytes):
-                        vals.append(["blob",len(x),hashlib.sha256(x).hexdigest()])
-                    else:
-                        vals.append(x)
-                digest=int.from_bytes(hashlib.sha256(
-                    json.dumps(vals,ensure_ascii=False,separators=(",",":"),default=str).encode("utf-8")
-                ).digest(),"big")
-                xorval^=digest
-                sumval=(sumval+digest)%(1<<256)
-                n+=1
-        except sqlite3.DatabaseError as e:
-            fail("Impossibile confrontare tabella "+name+": "+str(e))
-        return (n,xorval,sumval)
+def tables_preserved(old_db, new_db):
+    """Audit ALL tables without discarding diagnostic evidence on the first difference.
+
+    Only a genuinely append-only operational k_project_update is provisionally
+    acceptable; any modification/deletion, other changed table, or schema
+    difference blocks backup removal until explicitly reviewed.
+    """
+    def open_ro(path):
+        connection = sqlite3.connect("file:" + str(path) + "?mode=ro", uri=True)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    def quoted(name):
+        return '"' + name.replace('"', '""') + '"'
+
+    def tables(c):
+        return {r[0] for r in c.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        )}
+
+    def schema(c, name):
+        return [tuple(row) for row in c.execute("PRAGMA table_info(" + quoted(name) + ")")]
+
+    def digest_row(row):
+        vals = []
+        for x in row:
+            if isinstance(x, bytes):
+                vals.append(["blob", len(x), hashlib.sha256(x).hexdigest()])
+            else:
+                vals.append(x)
+        encoded = json.dumps(vals, ensure_ascii=False,
+                             separators=(",", ":"), default=str).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    def fingerprints(c, name):
+        # Independent of SQLite row order and valid for duplicate rows.
+        n, xorval, sumval = 0, 0, 0
+        for row in c.execute("SELECT * FROM " + quoted(name)):
+            val = int(digest_row(row), 16)
+            n += 1
+            xorval ^= val
+            sumval = (sumval + val) % (1 << 256)
+        return (n, xorval, sumval)
+
+    def sample_value(v):
+        if isinstance(v, bytes):
+            return {"blob_bytes": len(v),
+                    "sha256": hashlib.sha256(v).hexdigest()}
+        if isinstance(v, str):
+            return v[:200] + ("..." if len(v) > 200 else "")
+        return v
+
+    def diagnose(c_old, c_new, name):
+        old_schema = schema(c_old, name)
+        new_schema = schema(c_new, name)
+        colnames = [r[1] for r in old_schema]
+        old_count = c_old.execute("SELECT COUNT(*) FROM " + quoted(name)).fetchone()[0]
+        new_count = c_new.execute("SELECT COUNT(*) FROM " + quoted(name)).fetchone()[0]
+        out = {
+            "table": name, "old_rows": old_count, "new_rows": new_count,
+            "schema_equal": old_schema == new_schema, "columns": colnames,
+            "primary_key": [], "added_count": None, "removed_count": None,
+            "modified_count": None, "sample_added_keys": [],
+            "sample_removed_keys": [], "sample_modified_rows": [],
+            "append_only": False, "analysis_complete": False
+        }
+        if old_schema != new_schema:
+            out["old_schema"] = old_schema
+            out["new_schema"] = new_schema
+            return out
+        if max(old_count, new_count) > 250000:
+            out["note"] = "Differenza troppo grande per diagnosi in memoria; backup protetti"
+            return out
+
+        pk_names = [r[1] for r in sorted(old_schema, key=lambda r: r[5])
+                    if r[5] > 0]
+        out["primary_key"] = pk_names
+        if pk_names:
+            def keyed_rows(c):
+                result = {}
+                for row in c.execute("SELECT * FROM " + quoted(name)):
+                    k = tuple(row[col] for col in pk_names)
+                    if k in result:
+                        raise RuntimeError("Chiave duplicata in " + name)
+                    result[k] = tuple(row)
+                return result
+            prev, nxt = keyed_rows(c_old), keyed_rows(c_new)
+            added = set(nxt) - set(prev)
+            removed = set(prev) - set(nxt)
+            modified = [k for k in prev.keys() & nxt.keys()
+                        if digest_row(prev[k]) != digest_row(nxt[k])]
+            out["added_count"], out["removed_count"] = len(added), len(removed)
+            out["modified_count"] = len(modified)
+            out["sample_added_keys"] = [
+                [sample_value(v) for v in k] for k in
+                sorted(added, key=str)[:10]
+            ]
+            out["sample_removed_keys"] = [
+                [sample_value(v) for v in k] for k in
+                sorted(removed, key=str)[:10]
+            ]
+            for k in sorted(modified, key=str)[:10]:
+                changed = []
+                for col, before, after in zip(colnames, prev[k], nxt[k]):
+                    if before != after:
+                        changed.append({
+                            "column": col,
+                            "old": sample_value(before),
+                            "new": sample_value(after)
+                        })
+                out["sample_modified_rows"].append({
+                    "primary_key": [sample_value(v) for v in k],
+                    "changed_fields": changed
+                })
+        else:
+            # Tables without a primary key: compare a true multiset of row hashes,
+            # not unstable ROWIDs (which may change after repacking SQLite).
+            before = Counter(digest_row(row)
+                             for row in c_old.execute("SELECT * FROM " + quoted(name)))
+            after = Counter(digest_row(row)
+                            for row in c_new.execute("SELECT * FROM " + quoted(name)))
+            added = after - before
+            removed = before - after
+            out["added_count"] = sum(added.values())
+            out["removed_count"] = sum(removed.values())
+            out["modified_count"] = None  # No stable PK means edits are add/remove.
+            out["sample_added_keys"] = list(added)[:10]
+            out["sample_removed_keys"] = list(removed)[:10]
+        out["analysis_complete"] = True
+        out["append_only"] = (out["schema_equal"] and
+                              out["removed_count"] == 0 and
+                              out["added_count"] > 0 and
+                              out["modified_count"] in (None, 0))
+        return out
+
+    old, new = open_ro(old_db), open_ro(new_db)
     try:
-        old_tables=names(old);new_tables=names(new)
-        if not old_tables<=new_tables:
-            fail("Tabelle canoniche originali mancanti: "+str(sorted(old_tables-new_tables)))
-        additions=sorted(new_tables-old_tables)
-        for t in sorted(old_tables):
-            if rows_fingerprint(old,t)!=rows_fingerprint(new,t):
-                fail("Regressione o modifica non attesa nella tabella: "+t)
-            print("Tabella invariata:",t,flush=True)
-        return {"original_tables_identical":len(old_tables),"new_tables":additions}
+        old_tables, new_tables = tables(old), tables(new)
+        missing = sorted(old_tables - new_tables)
+        additions = sorted(new_tables - old_tables)
+        identical = 0
+        differences = []
+        approved_append_only = []
+        for table in sorted(old_tables & new_tables):
+            before_schema = schema(old, table)
+            after_schema = schema(new, table)
+            before_hash = fingerprints(old, table)
+            after_hash = fingerprints(new, table)
+            if before_schema == after_schema and before_hash == after_hash:
+                identical += 1
+                print("Tabella invariata:", table, flush=True)
+                continue
+            diff = diagnose(old, new, table)
+            # The operational journal is allowed to GROW, but never to rewrite
+            # or remove existing rows. This is a structural, not semantic,
+            # acceptance: record details for the subsequent editorial audit.
+            is_expected_append = (table == "k_project_update" and
+                                  diff["append_only"] and
+                                  diff["analysis_complete"])
+            diff["provisionally_accepted_append_only"] = is_expected_append
+            differences.append(diff)
+            if is_expected_append:
+                approved_append_only.append(table)
+                print("AGGIUNTE CONSERVATIVE nel registro:", table,
+                      "(+%s righe)" % diff["added_count"], flush=True)
+            else:
+                print("DIFFERENZA DA VALUTARE:", table,
+                      "precedente=%s, nuovo=%s" %
+                      (diff["old_rows"], diff["new_rows"]), flush=True)
+        unsafe = [d["table"] for d in differences
+                  if not d["provisionally_accepted_append_only"]]
+        return {
+            "original_tables": len(old_tables),
+            "original_tables_identical": identical,
+            "new_tables": additions,
+            "missing_tables": missing,
+            "differences": differences,
+            "approved_append_only_tables": approved_append_only,
+            "unresolved_table_differences": unsafe,
+            "all_original_tables_preserved":
+                (not missing and not unsafe and
+                 identical + len(approved_append_only) == len(old_tables)),
+        }
     finally:
-        old.close();new.close()
+        old.close()
+        new.close()
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -366,18 +509,23 @@ def main():
             old_db=root/"canonical-old.sqlite"
             extract_db(old_zip,old_db)
             old_sqlite=sqlite_checks(old_db)
-            unchanged_tables=tables_preserved(old_db,new_db)
+            preservation=tables_preserved(old_db,new_db)
             missing_members=sorted(set(old_members)-set(new_members))
+            added_members=sorted(set(new_members)-set(old_members))
             changed_members=[name for name in old_members if name in new_members
                              and old_members[name]!=new_members[name]
                              and name!=ZIP_DB
                              and "JMDICT-" not in name.upper()]
-            if missing_members or changed_members:
-                fail("Backup e canonico differiscono in file non autorizzati: "
-                     +json.dumps({"missing":missing_members[:10],"changed":changed_members[:10]}))
+            members_preserved = not missing_members and not changed_members
+            if not members_preserved:
+                print("DIFFERENZE NEI FILE ZIP:", len(missing_members),
+                      "mancanti,", len(changed_members), "modificati", flush=True)
             old_verification={"checked":True,"zip_sha256":old_manifest["sha256"],
-                "crc":"PASS","sqlite":old_sqlite,"table_preservation":unchanged_tables,
-                "non_db_members_preserved":True}
+                "crc":"PASS","sqlite":old_sqlite,"table_preservation":preservation,
+                "members_preserved":members_preserved,
+                "missing_members":missing_members,
+                "changed_members":changed_members,
+                "added_members":added_members}
         blocked=[x["stable_id"] for x in cases if x["status"]!="UNIQUE_EXACT_GLOSS_MATCH"]
         final={
             "schema":"KOTOBA_JMDICT_FINAL_AUDIT_READONLY_V1",
@@ -391,16 +539,29 @@ def main():
             "cases":{"total":23,"status_counts":dict(Counter(x["status"] for x in cases)),
                      "remaining_review_ids":blocked,"details":cases},
             "old_backup":old_verification,
-            "safe_to_delete_backups":bool(not blocked and old_verification.get("checked")),
+            "safe_to_delete_backups":bool(
+                not blocked
+                and old_verification.get("checked")
+                and old_verification.get("table_preservation",{}).get("all_original_tables_preserved")
+                and old_verification.get("members_preserved")
+            ),
+            "technical_backup_integrity_pass":bool(old_verification.get("checked")),
+            "structural_preservation_pass":bool(
+                old_verification.get("table_preservation",{}).get("all_original_tables_preserved")
+                and old_verification.get("members_preserved")
+            ),
             "delete_performed":False,
             "safety_note":"Do not delete backup files until all open semantic mappings have been editorially resolved and source IDs verified. This audit never edits study flags, original translations, or personal progress."
         }
         output=pathlib.Path("/content/JMDICT-CHIUSURA-CONTROLLI.json")
         output.write_text(json.dumps(final,ensure_ascii=False,indent=2),encoding="utf-8")
+        print("Audit completato. Eventuali differenze sono documentate, non ignorate.",flush=True)
         print(json.dumps({"result":"AUDIT_COMPLETE","zip_sha256":new_sha,
                           "source_sha256":XML_SHA256,"cases":23,
                           "status_counts":final["cases"]["status_counts"],
                           "safe_to_delete_backups":final["safe_to_delete_backups"],
+                          "table_differences":old_verification.get("table_preservation",{}).get("differences",[]),
+                          "modified_zip_members":old_verification.get("changed_members",[]),
                           "output":str(output)},ensure_ascii=False,indent=2))
         try:
             from google.colab import files
