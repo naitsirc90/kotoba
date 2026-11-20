@@ -279,6 +279,90 @@ def semantic_cases(report, senses):
         fail("Dovrebbero esserci 23 casi bloccanti, trovati "+str(len(results)))
     return results
 
+
+# Editorial decisions on the *pinned source*, not automatic index renumbering.
+# Legacy meanings absent in current JMdict remain distinct and unlinked.
+FINAL_ADJUDICATIONS = {
+ "jmdict-1077060-1":("MAP",3,"Scatto: rapid movement, not the punctuation dash."),
+ "jmdict-1284460-7":("MAP",4,"Mescolare: to mix/to blend, not combine organizations."),
+ "jmdict-1284480-7":("MAP",4,"Mescolare: to mix/to blend, not combine organizations."),
+ "jmdict-1362640-8":("MAP",8,"Scuro: deep (color)/dark, not other senses of deep."),
+ "jmdict-1098360-2":("LEGACY",None,"Historical department-store special sale not a separate current JMdict sense."),
+ "jmdict-1284460-3":("LEGACY",None,"Historical to face/to be opposite no longer a separate source sense."),
+ "jmdict-1284480-3":("LEGACY",None,"Historical to face/to be opposite no longer a separate source sense."),
+ "jmdict-1284460-5":("LEGACY",None,"Historical to cause to meet an unpleasant fate no longer a separate source sense."),
+ "jmdict-1284480-5":("LEGACY",None,"Historical to cause to meet an unpleasant fate no longer a separate source sense."),
+}
+
+def close_editorial_cases(cases):
+    cnt=Counter()
+    for c in cases:
+        sid=c["stable_id"]
+        decision=FINAL_ADJUDICATIONS.get(sid)
+        if decision:
+            action,idx,reason=decision
+            if action=="MAP":
+                if c["status"]!="AMBIGUOUS_MULTIPLE_GLOSS_MATCHES" or idx not in c["matching_indices"]:
+                    fail("Mapping changed; manual review required: "+sid)
+                gloss={x["index"]:x["glosses"] for x in c["source_senses"]}[idx]
+                it=c.get("italian") or []
+                if sid=="jmdict-1077060-1" and not ("rapid movement" in gloss and "scatto" in it):
+                    fail("Scatto evidence mismatch")
+                if sid.endswith("-7") and not ("to mix" in gloss and "mescolare" in it):
+                    fail("Mescolare evidence mismatch")
+                if sid=="jmdict-1362640-8" and not ("dark" in gloss and "deep (color)" in gloss and "scuro" in it):
+                    fail("Scuro evidence mismatch")
+                state="SOURCE_INDEX_VERIFIED"
+            elif action=="LEGACY":
+                if c["status"]!="NO_EXACT_GLOSS_MATCH_PRESERVE_LEGACY" or c["matching_indices"]:
+                    fail("Legacy-only evidence mismatch: "+sid)
+                state="LEGACY_UNLINKED_AND_PRESERVED"
+            else:
+                fail("Bad editorial action: "+sid)
+        else:
+            if c["status"]!="UNIQUE_EXACT_GLOSS_MATCH" or not isinstance(c["verified_current_index"],int):
+                fail("No verified source mapping: "+sid)
+            idx=c["verified_current_index"]
+            state="SOURCE_INDEX_VERIFIED"
+            reason="Unique current JMdict gloss, original stable ID preserved"
+        c["editorial_resolution"]={"status":state,"source_index":idx,"reason":reason,
+                                    "preserve_existing_id":True,"no_database_write":True}
+        cnt[state]+=1
+    if len(cases)!=23 or cnt["SOURCE_INDEX_VERIFIED"]!=18 or cnt["LEGACY_UNLINKED_AND_PRESERVED"]!=5:
+        fail("Unexpected semantic case counts: "+str(cnt))
+    return {"status":"ADJUDICATED_READ_ONLY","counts":dict(cnt),
+            "no_source_index_invented":True,"canonical_data_changed":False}
+
+def detailed_manifest_comparison(old_zip,new_zip):
+    name="KOTOBA-CANONICO/04-DOCUMENTAZIONE/MANIFEST-CANONICO.json"
+    def load(zpath):
+        with zipfile.ZipFile(zpath) as z:
+            contents=z.read(name)
+        if len(contents)>5_000_000: fail("Manifest unexpectedly large")
+        return json.loads(contents)
+    a,b=load(old_zip),load(new_zip)
+    changes=[]
+    def walk(x,y,path=""):
+        if len(changes)>120: return
+        if isinstance(x,dict) and isinstance(y,dict):
+            for k in sorted(set(x)|set(y)):
+                here=path+"/"+str(k)
+                if k not in x: changes.append({"path":here,"change":"added","new":y[k]})
+                elif k not in y: changes.append({"path":here,"change":"removed","old":x[k]})
+                else: walk(x[k],y[k],here)
+        elif x!=y:
+            xstr=json.dumps(x,ensure_ascii=False,default=str)
+            ystr=json.dumps(y,ensure_ascii=False,default=str)
+            changes.append({"path":path,"change":"modified",
+                            "old":x if len(xstr)<1000 else {"length":len(xstr)},
+                            "new":y if len(ystr)<1000 else {"length":len(ystr)}})
+    walk(a,b)
+    return {"both_json_valid":True,"changed_fields":changes,
+            "field_count":len(changes),
+            "review_required":bool(changes),
+            "note":"Expected manifest delta must be reviewed, not accepted solely by file name."}
+
+
 def tables_preserved(old_db, new_db):
     """Audit ALL tables without discarding diagnostic evidence on the first difference.
 
@@ -501,10 +585,13 @@ def main():
                  if c.get("semantic_review",{}).get("decision_class") in {"SENSE_BLOCK","SOURCE_TRACE"}}
         entries,count=xml_entry_senses(xml,targets)
         cases=semantic_cases(report,entries)
+        editorial=close_editorial_cases(cases)
         old_verification={"checked":False}
         if not args.no_old_backup_check:
             print("Verifica indipendente backup storico delle sei parti",flush=True)
             old_zip,old_manifest=old_backup(service,parent,args.old_manifest_id,root)
+            manifest_diff=detailed_manifest_comparison(old_zip,new_zip)
+            print('MANIFEST-CANONICO changed:',json.dumps(manifest_diff['changed_fields'],ensure_ascii=False)[:2500],flush=True)
             old_members=check_zip(old_zip)
             old_db=root/"canonical-old.sqlite"
             extract_db(old_zip,old_db)
@@ -525,8 +612,8 @@ def main():
                 "members_preserved":members_preserved,
                 "missing_members":missing_members,
                 "changed_members":changed_members,
-                "added_members":added_members}
-        blocked=[x["stable_id"] for x in cases if x["status"]!="UNIQUE_EXACT_GLOSS_MATCH"]
+                "added_members":added_members,"manifest_comparison":manifest_diff}
+        blocked=[x['stable_id'] for x in cases if x['editorial_resolution']['status'] not in ('SOURCE_INDEX_VERIFIED','LEGACY_UNLINKED_AND_PRESERVED')]
         final={
             "schema":"KOTOBA_JMDICT_FINAL_AUDIT_READONLY_V1",
             "utc":dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -537,13 +624,14 @@ def main():
             "source":{"pinned_commit":COMMIT,"xml_sha256":XML_SHA256,
                       "entries":count,"patches_applied":patchcount},
             "cases":{"total":23,"status_counts":dict(Counter(x["status"] for x in cases)),
-                     "remaining_review_ids":blocked,"details":cases},
+                     "remaining_review_ids":blocked,"editorial_closure":editorial,"details":cases},
             "old_backup":old_verification,
             "safe_to_delete_backups":bool(
                 not blocked
                 and old_verification.get("checked")
                 and old_verification.get("table_preservation",{}).get("all_original_tables_preserved")
                 and old_verification.get("members_preserved")
+                and not old_verification.get('manifest_comparison',{}).get('review_required',True)
             ),
             "technical_backup_integrity_pass":bool(old_verification.get("checked")),
             "structural_preservation_pass":bool(
@@ -559,6 +647,8 @@ def main():
         print(json.dumps({"result":"AUDIT_COMPLETE","zip_sha256":new_sha,
                           "source_sha256":XML_SHA256,"cases":23,
                           "status_counts":final["cases"]["status_counts"],
+                          "editorial_closure":editorial,
+                          "manifest_diff":old_verification.get('manifest_comparison',{}).get('changed_fields',[]),
                           "safe_to_delete_backups":final["safe_to_delete_backups"],
                           "table_differences":old_verification.get("table_preservation",{}).get("differences",[]),
                           "modified_zip_members":old_verification.get("changed_members",[]),
