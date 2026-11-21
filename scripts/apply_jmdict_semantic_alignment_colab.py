@@ -236,6 +236,9 @@ def assertions_before_edit(c,report):
         die("Violazioni di chiavi esterne nel SQLite di partenza")
     if c.execute("SELECT count(*) FROM k_jmdict_change").fetchone()[0]!=92:
         die("Numero casi cambiati JMdict inatteso")
+    if c.execute("SELECT count(*) FROM k_jmdict_revision WHERE source_xml_sha256=?",
+                 (FROZEN_XML_SHA,)).fetchone()[0]!=1:
+        die("La revisione sorgente JMdict nel canonico non coincide con il rapporto")
     orig_cases={x.get("canonical_id"):x for x in report["cases"]}
     if len(orig_cases)!=92 or not set(FINAL)<=set(orig_cases):
         die("Manca qualche voce in rapporto editoriale")
@@ -353,9 +356,9 @@ def apply_editorial_mapping(c,report):
     ))
     return {"status":"PASS","key_column":key,"mapped":18,"legacy":5,"pending":0}
 
-def update_file_manifest(manifest,db_bytes,report_bytes):
+def update_file_manifest(manifest,db_path,report_bytes):
     info={
-       DB_MEMBER:{"sha256":sha_bytes(db_bytes),"size":len(db_bytes)},
+       DB_MEMBER:{"sha256":sha_file(db_path),"size":db_path.stat().st_size},
        REPORT_MEMBER:{"sha256":sha_bytes(report_bytes),"size":len(report_bytes)}
     }
     # Some manifests may use root-relative paths, so basename matching is
@@ -457,20 +460,28 @@ def create_updated_zip(previous,updated_db,target):
         report=json.loads(original.read(REPORT_MEMBER))
         if report.get("source_sha256")!=FROZEN_XML_SHA:
             die("XML SHA del rapporto non corrisponde al pin")
-        with connection(updated_db) as c:
+        c=connection(updated_db)
+        try:
             c.execute("BEGIN IMMEDIATE")
             overlay=apply_editorial_mapping(c,report)
             c.commit()
-        db_blob=updated_db.read_bytes()
+        except Exception:
+            c.rollback()
+            raise
+        finally:
+            c.close()
         report_blob=(json.dumps(report,ensure_ascii=False,indent=2)+"\n").encode("utf-8")
         manifest=json.loads(original.read(MANIFEST_MEMBER))
-        manifest=update_file_manifest(manifest,db_blob,report_blob)
+        manifest=update_file_manifest(manifest,updated_db,report_blob)
         manifest_blob=(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n").encode("utf-8")
-        replacements={DB_MEMBER:db_blob,REPORT_MEMBER:report_blob,MANIFEST_MEMBER:manifest_blob}
+        replacements={REPORT_MEMBER:report_blob,MANIFEST_MEMBER:manifest_blob}
         with zipfile.ZipFile(target,"w",allowZip64=True) as out:
             for item in original.infolist():
                 info=copy.copy(item)
-                if item.filename in replacements:
+                if item.filename==DB_MEMBER:
+                    with updated_db.open("rb") as src, out.open(info,"w",force_zip64=True) as dst:
+                        shutil.copyfileobj(src,dst,length=8*1024*1024)
+                elif item.filename in replacements:
                     out.writestr(info,replacements[item.filename])
                 else:
                     with original.open(item) as src, out.open(info,"w",force_zip64=True) as dst:
