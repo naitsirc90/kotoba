@@ -42,14 +42,33 @@
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(e=>console.warn('SW registration failed:',e));
     }
-    const paths=['./assets/data/vocabulary.json','./assets/data/learning-priority.json','./assets/data/legacy-compat.json','./assets/data/operational-eligibility.json'];
-    const responses=await Promise.all(paths.map(p=>fetch(p,{cache:'default'})));
-    if(responses.some(r=>!r.ok))throw new Error('Dati del dizionario non disponibili: apri una volta Kotoba online per completare l’installazione.');
-    const data=await Promise.all(responses.map(r=>r.json()));
-    window.__KOTOBA_VOCABULARY__=data[0];
-    window.__KOTOBA_LEARNING_PRIORITY__=data[1];
-    window.__KOTOBA_LEGACY_COMPAT__=data[2];
-    window.__KOTOBA_OPERATIONAL_ELIGIBILITY__=data[3];
+    // JMdict V3 corpus: compressed public assets; the IDB progress store is unchanged.
+    const vocabularyParts=Array.from({length:8},(_,i)=>
+      './assets/data/vocabulary-v318.gz.part'+String(i+1).padStart(2,'0'));
+    const loadVocabulary=async()=>{
+      if(typeof DecompressionStream!=='function')
+        throw new Error('Per la versione 3.1.18 è necessario aggiornare il browser (supporto decompressione offline).');
+      const responses=await Promise.all(vocabularyParts.map(p=>fetch(p,{cache:'default'})));
+      if(responses.some(r=>!r.ok))throw new Error('Dizionario 3.1.18 incompleto: apri una volta Kotoba online per completare l’installazione.');
+      const buffers=await Promise.all(responses.map(r=>r.arrayBuffer()));
+      const stream=new Blob(buffers,{type:'application/gzip'}).stream().pipeThrough(new DecompressionStream('gzip'));
+      const corpus=await new Response(stream).json();
+      if(!Array.isArray(corpus.entries) || corpus.entries.length!==24538 ||
+         corpus.meta?.jmdictEditorialAlignmentVersion!=='2026-11-21-V3')
+        throw new Error('Il dizionario 3.1.18 non supera i controlli di versione e integrità.');
+      return corpus;
+    };
+    const otherPaths=['./assets/data/learning-priority.json','./assets/data/legacy-compat.json','./assets/data/operational-eligibility.json'];
+    const otherData=otherPaths.map(async p=>{
+      const r=await fetch(p,{cache:'default'});
+      if(!r.ok)throw new Error('Dati offline mancanti: '+p);
+      return r.json();
+    });
+    const [vocabulary,priority,compat,eligibility]=await Promise.all([loadVocabulary(),...otherData]);
+    window.__KOTOBA_VOCABULARY__=vocabulary;
+    window.__KOTOBA_LEARNING_PRIORITY__=priority;
+    window.__KOTOBA_LEGACY_COMPAT__=compat;
+    window.__KOTOBA_OPERATIONAL_ELIGIBILITY__=eligibility;
     const script=document.createElement('script');script.src='./app.js';script.defer=true;
     script.onerror=()=>status('Impossibile avviare l’app. Verifica la connessione e ricarica la pagina.');
     document.body.appendChild(script);

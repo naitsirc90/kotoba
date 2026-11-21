@@ -18,18 +18,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check JMdict audit script syntax
-        run: python -m py_compile scripts/check-jmdict-current.py
-      - name: Check 92-case read-only audit and synthetic schema tests
+      - name: Check JMdict scripts syntax and review regressions
         run: |
-          python -m py_compile scripts/review_jmdict_92.py
+          python -m py_compile scripts/check-jmdict-current.py scripts/review_jmdict_92.py
           python -m unittest discover -s tests -p test_jmdict_92.py -v
       - name: Check JavaScript syntax
         run: |
           node --check sw.js
           node --check bootstrap.js
           node --check app.js
-      - name: Verify offline shell and lexical IDs
+          node --check scripts/check-pwa-preflight.cjs
+          node --check scripts/test-pwa-offline.cjs
+      - name: Verify complete 3.1.18 corpus, licenses and M3 safety
         run: node scripts/check-pwa-preflight.cjs
 
   browser-offline:
@@ -44,7 +44,7 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright@1.61.0
           npx playwright install --with-deps chromium
-      - name: Test first-install offline reload and IndexedDB continuity
+      - name: Test offline installation and IndexedDB continuity
         run: node scripts/test-pwa-offline.cjs
 
   public-pages:
@@ -52,19 +52,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Verify the deployed worker and required pages (no credentials)
+      - name: Verify GitHub Pages deployment of Kotoba 3.1.18
         shell: bash
         run: |
           set -euo pipefail
           base='https://naitsirc90.github.io/kotoba'
           ready=0
           for attempt in {1..18}; do
-            if curl -fLsS --connect-timeout 10 --max-time 25 "$base/sw.js?verify=$GITHUB_SHA" | grep -q '3.1.17-license-recovery-20261118'; then ready=1; break; fi
+            if curl -fLsS --connect-timeout 10 --max-time 25 "$base/sw.js?verify=$GITHUB_SHA" | grep -q '3.1.18-jmdict-v3-20261121'; then ready=1; break; fi
             echo "Waiting for GitHub Pages deployment, attempt $attempt"
             sleep 10
           done
-          if [ "$ready" -ne 1 ]; then echo "Published service worker does not match validated hotfix"; exit 1; fi
-          for file in index.html app.js bootstrap.js assets/data/vocabulary.json \
+          if [ "$ready" -ne 1 ]; then echo "Published service worker is not Kotoba 3.1.18"; exit 1; fi
+          for file in index.html app.js bootstrap.js \
+            assets/data/vocabulary-v318.gz.part01 \
+            assets/data/vocabulary-v318.gz.part02 \
+            assets/data/vocabulary-v318.gz.part03 \
+            assets/data/vocabulary-v318.gz.part04 \
+            assets/data/vocabulary-v318.gz.part05 \
+            assets/data/vocabulary-v318.gz.part06 \
+            assets/data/vocabulary-v318.gz.part07 \
+            assets/data/vocabulary-v318.gz.part08 \
             licenses/KOTOBA_3_1_17_M2_PROVA_SOURCES.txt \
             licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json \
             licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt \
@@ -74,4 +82,4 @@ jobs:
             test "$code" = 200 || { echo "$file HTTP $code"; exit 1; }
             echo "PASS HTTP 200 $file"
           done
-          echo 'PASS GitHub Pages published hotfix'
+          echo 'PASS GitHub Pages Kotoba 3.1.18'

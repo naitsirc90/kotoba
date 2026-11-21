@@ -18,7 +18,7 @@ if (KOTOBA_OPERATIONAL_HOLD_IDS.size !== 68 ||
 const isOperationallyHeldId = id => KOTOBA_OPERATIONAL_HOLD_IDS.has(id);
 const isOperationallyStudyable = vocab => Boolean(vocab && vocab.studyEnabled !== false && !isOperationallyHeldId(vocab.id));
 
-const KOTOBA_RELEASE = '3.1.17';
+const KOTOBA_RELEASE = '3.1.18';
 // Immutable, locally embedded priority index. This index does not change
 // SRS deadlines, selected topics, Study Level gates or saved progress.
 const KOTOBA_LEARNING_PRIORITY_SCORES = window.__KOTOBA_LEARNING_PRIORITY__?.scores || {};
@@ -3262,7 +3262,7 @@ function renderSettings() {
       <details class="settings-disclosure" data-settings-section="data" ${settingsOpenSection === 'data' ? 'open' : ''}>
         <summary><span><strong>Informazioni e dati</strong><small>Versione ${escapeHtml(KOTOBA_RELEASE.split('-')[0])} · Fonti e licenze</small></span><span class="disclosure-arrow" aria-hidden="true">⌄</span></summary>
         <div class="settings-disclosure-body">
-          <p class="field-help"><strong>Versione app:</strong> ${escapeHtml(KOTOBA_RELEASE.split('-')[0])}<br><strong>Dizionario:</strong> Kotoba Lexicon V4.2 · ${canonicalCount.toLocaleString('it-IT')} accezioni canoniche (${eligibleCount.toLocaleString('it-IT')} esercitabili (filtro M3)).<br><strong>Livelli:</strong> Essenziale, Base, Intermedio, Avanzato, Esperto. Dopo il primo caricamento l’app funziona offline. I progressi sono salvati sul dispositivo principalmente in IndexedDB (kotoba-pwa-progress-v1); localStorage serve soltanto per compatibilità o migrazione. I livelli sono indicativi; alcune accezioni restano escluse in attesa di verifica.</p>
+          <p class="field-help"><strong>Versione app:</strong> ${escapeHtml(KOTOBA_RELEASE.split('-')[0])}<br><strong>Dizionario:</strong> Kotoba Lexicon V4.2 · ${canonicalCount.toLocaleString('it-IT')} accezioni canoniche (${eligibleCount.toLocaleString('it-IT')} esercitabili (filtro M3)).<br><strong>Livelli:</strong> Essenziale, Base, Intermedio, Avanzato, Esperto. Dopo il primo caricamento l'app funziona offline. I progressi della PWA sono salvati principalmente in IndexedDB; su Android restano nella memoria locale del dispositivo. localStorage serve anche per la compatibilità con i dati precedenti. I livelli sono indicativi; alcune accezioni restano escluse in attesa di verifica.</p>
           <details class="kotoba-credits"><summary>Fonti e licenze del dizionario</summary>
       <p><strong>JMdict / EDRDG:</strong> grafie, letture e accezioni. © EDRDG e James W. Breen, CC BY-SA 4.0; dati selezionati e rielaborati per il progetto Kotoba Offline. Licenza: https://www.edrdg.org/edrdg/licence.html</p>
       <p><strong>FreeDict + WikDict italiano–giapponese:</strong> edizione 2025.11.23, curata da Karl Bartel; dati derivati da Wiktionary/DBnary, CC BY-SA 3.0. https://freedict.org/ · https://creativecommons.org/licenses/by-sa/3.0/</p>
@@ -3270,14 +3270,7 @@ function renderSettings() {
       <p><strong>Japanese WordNet / NICT:</strong> © 2009–2010 NICT, secondo la licenza originale. <strong>WordNet italiano / MultiWordNet:</strong> Pianta, Bentivogli e Girardi, 2002, CC BY 3.0. Le condizioni complete sono conservate nei file di licenza dell'app.</p>
       <p><strong>Dati didattici JLPT:</strong> Jonathan Waller e progetto yomitan-jlpt-vocab, CC BY 4.0 / CC BY-SA 4.0; i livelli sono indicativi e non ufficiali. <strong>Esempi P01–P03:</strong> frasi didattiche redatte per Kotoba Offline, senza riproduzione di definizioni protette.</p>
       <p><strong>Frequenze per le stime di livello:</strong> University of Leeds Corpus, elaborazione di hingston, CC BY 2.5; dati mediati da jkindrix/japanese-language-data, FrequencyWords e OpenSubtitles, CC BY-SA 4.0. I livelli sono stime orientative, non elenchi JLPT ufficiali.</p>
-      <p><strong>Ultimo aggiornamento JMdict applicato:</strong> non attestato dai metadati di questa build; verifica in corso prima della prossima release.</p>
-      <p><strong>Documenti disponibili offline:</strong>
-      <a href="./licenses/LEXICAL_SOURCES_2.7.6.txt">Fonti lessicali</a> ·
-      <a href="./licenses/JAPANESE_WORDNET_NICT_LICENSE.txt">Japanese WordNet / NICT</a> ·
-      <a href="./licenses/MULTIWORDNET_IT_CC_BY_3.0.txt">MultiWordNet italiano</a> ·
-      <a href="./licenses/JLPT_DATA.txt">Dati JLPT</a>.
-      Le attribuzioni aggiuntive e gli obblighi di ridistribuzione restano soggetti alla verifica del modulo canonico.</p>
-      <p><strong>Icone dell'app:</strong> provenienza e diritti in verifica per la prossima versione.</p>
+      <p><strong>JMdict 18 novembre 2026:</strong> allineamento editoriale V3: 18 collegamenti alla fonte verificati, 5 accezioni storiche preservate senza indice corrente, nessuna riattivazione delle parole escluse. I dati degli esercizi e le traduzioni preesistenti non sono stati modificati.</p><p><strong>Attribuzioni offline:</strong> <a href='./licenses/LEXICAL_SOURCES_2.7.6.txt'>fonti lessicali</a> · <a href='./licenses/JAPANESE_WORDNET_NICT_LICENSE.txt'>Japanese WordNet / NICT</a> · <a href='./licenses/MULTIWORDNET_IT_CC_BY_3.0.txt'>MultiWordNet</a> · <a href='./licenses/JLPT_DATA.txt'>dati JLPT</a> · <a href='./licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt'>fonti dei livelli</a>.</p><p>Le licenze delle risorse esterne sono distinte dalla licenza del codice e rimangono applicabili. La consultazione di una fonte non implica che il suo testo sia stato incorporato.</p>
       </details>
           <button class="btn danger-outline" data-action="open-reset">Resetta progressi</button>
         </div>

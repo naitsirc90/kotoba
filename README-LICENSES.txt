@@ -1,9 +1,7 @@
-KOTOBA OFFLINE — Fonti e documentazione del pacchetto 3.1.17 (revisione preparatoria)
+KOTOBA OFFLINE 3.1.18 - Fonti e attribuzioni della copia di prova
 
-I dati lessicali non sono coperti automaticamente dalla licenza MIT del codice.
-Si applicano anche le condizioni delle rispettive risorse di origine.
-
-Documenti effettivamente inclusi e accessibili senza connessione:
+Il codice originale e i dati lessicali sono soggetti a licenze distinte.
+Sono conservati offline i seguenti avvisi originali e documenti differenziali:
 - licenses/LEXICAL_SOURCES_2.7.6.txt
 - licenses/JAPANESE_WORDNET_NICT_LICENSE.txt
 - licenses/MULTIWORDNET_IT_CC_BY_3.0.txt
@@ -11,14 +9,14 @@ Documenti effettivamente inclusi e accessibili senza connessione:
 - licenses/KOTOBA_3_1_6_SOURCES_AND_ATTRIBUTIONS.txt
 - licenses/KOTOBA_3_1_7_PRIORITY_SOURCE_NOTE.txt
 - licenses/KOTOBA_3_1_8_EXPERIENCE_NOTICE.txt
+- licenses/KOTOBA_3_1_9_PORTABILITY.txt
+- licenses/KOTOBA_3_1_17_M2_PROVA_SOURCES.txt
+- licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json
+- licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt
+- licenses/LICENSE-CC-BY-SA-4.0.txt
 
-La documentazione differenziale delle revisioni successive alla 3.1.8
-e le attribuzioni complete della versione 3.1.17 sono in fase di
-riconciliazione con il registro canonico. NON considerare il presente
-testo una certificazione di conformita legale o di completezza delle
-attribuzioni. Prima di una nuova pubblicazione saranno ripristinati
-i documenti richiesti e validate le condizioni di ogni risorsa realmente
-distribuita (inclusi eventuali obblighi ShareAlike).
-
-La consultazione di una fonte durante il lavoro editoriale non implica
-automaticamente l'incorporazione dei relativi dati nella distribuzione.
+Aggiornamento JMdict al 18/11/2026: revisione editoriale V3 con 18 collegamenti verificati
+e 5 accezioni storiche conservate senza indice sorgente attuale; nessuna modifica alle
+traduzioni in studio, agli identificativi o ai progressi locali.
+Per gli obblighi Attribution/ShareAlike si applicano le licenze originali indicate.
+La presente copia di prova non costituisce una certificazione generale di conformita.

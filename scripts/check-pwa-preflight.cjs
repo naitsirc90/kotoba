@@ -1,52 +1,43 @@
 #!/usr/bin/env node
-// Checks the *tracked* PWA deployment, never reads credentials or local user data.
-const fs = require('node:fs');
-const path = require('node:path');
-const assert = require('node:assert/strict');
-const root = path.resolve(__dirname, '..');
-const read = p => fs.readFileSync(path.join(root, p), 'utf8');
-const sw = read('sw.js');
-const manifest = JSON.parse(read('manifest.webmanifest'));
-const scriptText = read('bootstrap.js');
-const app = read('app.js');
-assert.match(sw, /const ASSETS=\s*\[/);
-const marker = sw.match(/const ASSETS=\s*(\[[\s\S]*?\]);/);
-assert.ok(marker, 'Static ASSETS array not found');
-const assets = JSON.parse(marker[1]);  // JSON array: no eval, no runtime code.
-assert.ok(assets.includes('./'));
-for (const asset of assets) {
-  if (asset === './') continue;
-  assert.ok(asset.startsWith('./') && !asset.includes('..'), 'Unsafe asset path: ' + asset);
-  const file = path.join(root, asset);
-  assert.ok(fs.existsSync(file) && fs.statSync(file).isFile(), 'Missing precache file: ' + asset);
-  assert.ok(fs.statSync(file).size > 0, 'Empty precache file: ' + asset);
-}
-assert.equal(new Set(assets).size, assets.length, 'Duplicate ASSET entry');
-for (const [label, item] of Object.entries({
-  'index.html': './index.html', 'bootstrap.js': './bootstrap.js',
-  'app.js': './app.js', 'vocabulary': './assets/data/vocabulary.json',
-  'learning priority': './assets/data/learning-priority.json',
-  'legacy compatibility': './assets/data/legacy-compat.json',
-  'M3 safety': './assets/data/operational-eligibility.json'
-})) assert.ok(assets.includes(item), 'Required shell dependency missing: ' + label);
-for (const icon of manifest.icons || []) {
-  assert.ok(fs.existsSync(path.join(root, icon.src)), 'Missing manifest icon: ' + icon.src);
-  assert.ok(assets.includes(icon.src), 'Icon not precached: ' + icon.src);
-}
-assert.match(scriptText, /kotoba-pwa-progress-v1/, 'Persistence DB name changed!');
-assert.match(app, /const KOTOBA_RELEASE = '3\.1\.17'/);
-assert.ok(!sw.includes('skipWaiting('), 'Uncoordinated worker activation');
-const voc = JSON.parse(read('assets/data/vocabulary.json'));
-assert.ok(Array.isArray(voc.entries) && voc.entries.length > 10000, 'Unexpected vocabulary shape');
-const ids = voc.entries.map(v => v.id);
-assert.equal(new Set(ids).size, ids.length, 'Duplicate vocabulary IDs');
-const priority = JSON.parse(read('assets/data/learning-priority.json'));
-const eligibility = JSON.parse(read('assets/data/operational-eligibility.json'));
-assert.equal(eligibility.schema, 'KOTOBA_M3_OP5C_OPERATIONAL_ELIGIBILITY_V1');
-assert.equal(eligibility.blockedIdList.length, 68);
-assert.equal(new Set(eligibility.blockedIdList).size, 68);
-const byId = new Set(ids);
-for (const id of eligibility.blockedIdList) assert.ok(byId.has(id), 'M3 ID missing from vocabulary: ' + id);
-assert.ok(priority.scores && typeof priority.scores === 'object');
-console.log('PASS static PWA preflight:', assets.length, 'offline assets,', ids.length, 'unique senses, 68 held IDs');
-console.log('NOTE: browser offline install/update and IndexedDB continuity require runtime tests.');
+// Checks tracked PWA deployment, exact v3 vocabulary bytes and non-reset of persistent progress.
+const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..');
+const read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const sw=read('sw.js'),bootstrap=read('bootstrap.js'),app=read('app.js'),manifest=JSON.parse(read('manifest.webmanifest'));
+const m=sw.match(/const ASSETS=\s*(\[[\s\S]*?\]);/);
+assert.ok(m,'Missing service-worker precache declaration');
+const assets=JSON.parse(m[1]);
+assert.equal(assets.length,new Set(assets).size,'Duplicate precache files');
+for(const p of assets){if(p==='./')continue;assert.ok(p.startsWith('./')&&!p.includes('..'),'Unsafe path '+p);assert.ok(fs.statSync(path.join(root,p)).size>0,'Missing/empty offline asset '+p)}
+const parts=Array.from({length:8},(_,i)=>'./assets/data/vocabulary-v318.gz.part'+String(i+1).padStart(2,'0'));
+for(const p of parts)assert.ok(assets.includes(p),'Missing compressed asset: '+p);
+for(const p of ['./','./app.js','./bootstrap.js','./licenses/KOTOBA_3_1_17_M2_PROVA_SOURCES.txt','./licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json','./assets/data/learning-priority.json','./assets/data/legacy-compat.json','./assets/data/operational-eligibility.json'])assert.ok(assets.includes(p),'Missing precache: '+p);
+for(const icon of manifest.icons||[])assert.ok(assets.includes(icon.src)&&fs.existsSync(path.join(root,icon.src)),'Icon not cached: '+icon.src);
+assert.ok(!sw.includes('skipWaiting('),'Service worker may disrupt study session');
+assert.match(bootstrap,/kotoba-pwa-progress-v1/,'Progress IndexedDB schema changed');
+assert.match(bootstrap,/DecompressionStream\('gzip'\)/,'Missing offline corpus decompressor');
+assert.match(app,/const KOTOBA_RELEASE = '3\.1\.18'/);
+assert.match(sw,/3\.1\.18-jmdict-v3-20261121/);
+const compressed=Buffer.concat(parts.map(p=>fs.readFileSync(path.join(root,p))));
+assert.equal(crypto.createHash('sha256').update(compressed).digest('hex'),'aad2ed2c60737fde81a1d40a22ed69a29903dee1b78520f313f38133336283a5');
+const content=zlib.gunzipSync(compressed);
+assert.equal(crypto.createHash('sha256').update(content).digest('hex'),'228eb559b7bdae108355268e76a973245754d031500e7011615857acc02e377a');
+const corpus=JSON.parse(content.toString('utf8'));
+assert.equal(corpus.entries.length,24538);
+assert.equal(new Set(corpus.entries.map(e=>e.id)).size,24538);
+assert.equal(corpus.meta.jmdictEditorialAlignmentVersion,'2026-11-21-V3');
+assert.equal(corpus.meta.jmdictEditorialAlignmentMapped,18);
+assert.equal(corpus.meta.jmdictEditorialAlignmentLegacyPreserved,5);
+assert.equal(corpus.meta.jmdictEditorialAlignmentPresentInRuntime,20);
+const verified=corpus.entries.filter(e=>e.jmdictCurrentSourceAlignmentStatus==='VERIFIED_V3');
+const historical=corpus.entries.filter(e=>e.jmdictCurrentSourceAlignmentStatus==='HISTORICAL_UNLINKED_V3');
+assert.equal(verified.length,16);assert.equal(historical.length,4);
+assert.ok(historical.every(e=>e.historicalSensePreserved===true),'Historical meanings not protected');
+const priority=JSON.parse(read('assets/data/learning-priority.json'));
+const eligibility=JSON.parse(read('assets/data/operational-eligibility.json'));
+assert.equal(eligibility.schema,'KOTOBA_M3_OP5C_OPERATIONAL_ELIGIBILITY_V1');
+assert.equal(eligibility.blockedIdList.length,68);
+const ids=new Set(corpus.entries.map(e=>e.id));
+for(const id of eligibility.blockedIdList)assert.ok(ids.has(id),'M3 hold missing: '+id);
+assert.ok(priority.scores&&typeof priority.scores==='object');
+console.log('PASS Kotoba 3.1.18 preflight: 24538 senses, 18 V3 mapped, 5 historical, 68 M3 holds,',assets.length,'offline assets');

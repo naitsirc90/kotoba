@@ -1,6 +1,5 @@
-/* Kotoba offline-first: atomic pre-cache, keep previous active cache on failure. */
-/* Staging fix for 3.1.17; not a public release. */
-const VERSION='3.1.17-license-recovery-20261118';
+/* Kotoba offline-first: retain previous caches until the new package is complete. */
+const VERSION='3.1.18-jmdict-v3-20261121';
 const CACHE='kotoba-shell-'+VERSION;
 const ASSETS=[
   "./",
@@ -10,7 +9,14 @@ const ASSETS=[
   "./bootstrap.js",
   "./app.js",
   "./manifest.webmanifest",
-  "./assets/data/vocabulary.json",
+  "./assets/data/vocabulary-v318.gz.part01",
+  "./assets/data/vocabulary-v318.gz.part02",
+  "./assets/data/vocabulary-v318.gz.part03",
+  "./assets/data/vocabulary-v318.gz.part04",
+  "./assets/data/vocabulary-v318.gz.part05",
+  "./assets/data/vocabulary-v318.gz.part06",
+  "./assets/data/vocabulary-v318.gz.part07",
+  "./assets/data/vocabulary-v318.gz.part08",
   "./assets/data/learning-priority.json",
   "./assets/data/legacy-compat.json",
   "./assets/data/operational-eligibility.json",
@@ -29,28 +35,25 @@ const ASSETS=[
   "./licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json",
   "./licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt",
   "./licenses/LICENSE-CC-BY-SA-4.0.txt"
- ];
+];
 self.addEventListener('install',event=>{
+  // No skipWaiting: an update must never replace the files mid-session.
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE);
     try {
       await cache.addAll(ASSETS);
-      for(const asset of ASSETS){
-        if(!(await cache.match(asset))){
-          throw new Error('Asset offline obbligatorio assente: '+asset);
-        }
+      for (const asset of ASSETS) {
+        if (!(await cache.match(asset))) throw new Error('Asset offline mancante: '+asset);
       }
     } catch(error) {
       await caches.delete(CACHE);
-      throw error; // The previous active worker/cache stays intact.
+      throw error;
     }
-    // No skipWaiting: do not replace assets during an active study session.
   })());
 });
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
-    const keys=await caches.keys();
-    await Promise.all(keys.filter(k=>k.startsWith('kotoba-shell-')&&k!==CACHE).map(k=>caches.delete(k)));
+    const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('kotoba-shell-')&&k!==CACHE).map(k=>caches.delete(k)));
     await self.clients.claim();
   })());
 });
