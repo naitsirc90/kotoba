@@ -142,9 +142,9 @@ def clean_unsigned(signed,output):
 def same_payload(source,fixed):
     def contents(path):
         with zipfile.ZipFile(path) as z:
-            return {i.filename:(i.CRC,i.file_size)
+            return {i.filename:hashlib.sha256(z.read(i.filename)).hexdigest()
                 for i in z.infolist()
-                if not i.filename.upper().startswith("META-INF/")}
+                if not i.is_dir() and not i.filename.upper().startswith("META-INF/")}
     a,b=contents(source),contents(fixed)
     if a!=b:
         differences=sorted(n for n in set(a)|set(b) if a.get(n)!=b.get(n))
@@ -195,7 +195,7 @@ def sign_with_original_key(unsigned,aligned,key,target,tools):
            "--ks-pass","env:KOTOBA_SIGN_PASSWORD",
            "--key-pass","env:KOTOBA_SIGN_PASSWORD",
            "--v1-signing-enabled","true","--v2-signing-enabled","true",
-           "--v3-signing-enabled","true","--v4-signing-enabled","false",
+           "--v3-signing-enabled","true",
            "--out",str(target),str(aligned)],
           env=env,quiet=True)
     finally:
@@ -267,7 +267,7 @@ def main():
           "fixed_sha256":digest_file(fixed),
           "fixed_bytes":fixed.stat().st_size,
           "fixed_official_verifier":after,
-          "payload_files_bytewise_crc_preserved":n_files,
+          "payload_files_sha256_preserved":n_files,
           "package_identifier_and_version_unchanged":True,
           "certificate_matches_previous_expected":True,
           "drive_files_changed":False,
