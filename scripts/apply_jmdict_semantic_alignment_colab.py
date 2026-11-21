@@ -462,6 +462,9 @@ def create_updated_zip(previous,updated_db,target):
             die("XML SHA del rapporto non corrisponde al pin")
         c=connection(updated_db)
         try:
+            journal=c.execute("PRAGMA journal_mode=DELETE").fetchone()[0].lower()
+            if journal!="delete":
+                die("SQLite deve essere in modalita' DELETE per un archivio autosufficiente")
             c.execute("BEGIN IMMEDIATE")
             overlay=apply_editorial_mapping(c,report)
             c.commit()
@@ -470,6 +473,8 @@ def create_updated_zip(previous,updated_db,target):
             raise
         finally:
             c.close()
+        if pathlib.Path(str(updated_db)+"-wal").exists():
+            die("SQLite ha lasciato un WAL non incorporato nello ZIP")
         report_blob=(json.dumps(report,ensure_ascii=False,indent=2)+"\n").encode("utf-8")
         manifest=json.loads(original.read(MANIFEST_MEMBER))
         manifest=update_file_manifest(manifest,updated_db,report_blob)
@@ -497,6 +502,9 @@ def verify_zip_members(original,new):
     for n in a:
         if n not in changed and a[n]!=b[n]:
             die("Un file non pertinente e' cambiato: "+n)
+    for n in changed:
+        if a[n]==b[n]:
+            die("Il file previsto come aggiornato e' rimasto identico: "+n)
     return {"member_count":len(a),"only_changed_members":sorted(changed)}
 
 def main():
