@@ -1,4 +1,4 @@
-name: JMdict monthly upstream check (read-only)
+name: JMdict monthly source and editorial update gate
 on:
   schedule:
     - cron: '10 6 1 * *'
@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   source-check:
@@ -39,8 +40,53 @@ jobs:
             echo 'SOURCE=JITENDEX_EDRDG_RECONSTRUCTION' >> "$GITHUB_ENV"
           fi
           gzip -t "$RUNNER_TEMP/jmdict/JMdict_e.gz"
-      - name: Verify source and Kotoba compatibility (report only, NO deployment)
+      - name: Compare XML content against the last APPLIED source (not gzip packaging)
+        shell: bash
         run: |
-          python scripts/check-jmdict-current.py --current-gz "$RUNNER_TEMP/jmdict/JMdict_e.gz"
-          echo "JMdict source: $SOURCE"
-          echo 'NOTE: updated source is not an updated application release; editorial delta review and release QA required.'
+          set -euo pipefail
+          python scripts/check-jmdict-current.py --current-gz "$RUNNER_TEMP/jmdict/JMdict_e.gz" > "$RUNNER_TEMP/jmdict/summary.json"
+          cat "$RUNNER_TEMP/jmdict/summary.json"
+          python - "$RUNNER_TEMP/jmdict/summary.json" "$GITHUB_ENV" <<'PY'
+          import json,sys
+          with open(sys.argv[1]) as f: d=json.load(f)
+          with open(sys.argv[2],'a') as o:
+              o.write('SOURCE_XML_SHA='+d['official_xml_sha256']+'\n')
+              o.write('NEEDS_CANONICAL_UPDATE='+str(d['upstream_xml_differs_from_deployed']).lower()+'\n')
+          PY
+          echo "Retrieved JMdict source: $SOURCE"
+          echo 'Updated source requires canonical editorial application and release QA.'
+      - name: Keep ONE actionable issue while the source delta is pending
+        if: env.NEEDS_CANONICAL_UPDATE == 'true' && github.ref == 'refs/heads/main' && env.SOURCE == 'EDRDG_OFFICIAL_FTP'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          title='Kotoba: aggiornamento JMdict da revisionare'
+          issue=$(gh issue list --state open --limit 100 --json title,number --jq '.[] | select(.title == "Kotoba: aggiornamento JMdict da revisionare") | .number' | head -1)
+          body="$RUNNER_TEMP/jmdict/issue.md"
+          {
+            echo '# Aggiornamento JMdict necessario'
+            echo
+            echo "Ultimo controllo: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "Fonte acquisita: $SOURCE"
+            echo "SHA-256 XML ufficiale: $SOURCE_XML_SHA"
+            echo "SHA-256 XML applicato alla release corrente: 02c51639a138cfd874683b368f651d2d5a4108bf0054712c63913f3b25eef2a0"
+            echo
+            echo '## Procedura richiesta per il rilascio'
+            echo '1. Aprire nel Drive PERSONALE il solo canonico corrente e il riferimento JMdict applicato.'
+            echo '2. Calcolare i delta ent_seq, senza sostituire automaticamente glosse e traduzioni.'
+            echo '3. Revisionare differenze pertinenti, preservando ID, progressi, gates M3/OP5C e studyEnabled.'
+            echo '4. Aggiornare il canonico in transazione, con test di integrita e hash dei dati protetti.'
+            echo '5. Compilare e verificare PWA e APK con la firma storica; distribuire aggiornamenti solo dopo QA.'
+            echo '6. Aggiornare SHA XML applicato e chiudere questa issue solo dopo il rilascio effettivo.'
+            echo
+            echo 'Manuale: https://github.com/naitsirc90/kotoba/blob/main/docs/KOTOBA-JMDICT-MANUTENZIONE.md'
+          } > "$body"
+          if [ -n "$issue" ]; then
+            gh issue edit "$issue" --body-file "$body"
+            echo "Updated issue #$issue, without duplicates"
+          else
+            gh issue create --title "$title" --body-file "$body"
+            echo 'Created one pending JMdict issue'
+          fi
