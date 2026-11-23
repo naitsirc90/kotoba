@@ -137,3 +137,14 @@ jobs:
         run: |
           python -m py_compile scripts/audit-freedict-source.py
           python scripts/audit-freedict-source.py
+
+  store-license-gate:
+    name: STORE RELEASE BLOCKER - unresolved licensing provenance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Enforce explicit canonical C-M2 and historical rights gates
+        run: python scripts/check-store-license-gates.py
