@@ -9,7 +9,7 @@ Il codice MIT non attribuisce licenza MIT ai dizionari, ai dati riutilizzati da 
 FreeDict + WikDict, dizionario italiano-giapponese ita-jpn, edizione 2025.11.23; curatore Karl Bartel. Fonti: https://freedict.org/ ; https://freedict.org/downloads/index.html ; https://www.wikdict.com/page/about .
 WikDict deriva i contenuti da Wiktionary tramite DBnary. La licenza registrata nella filiera precedente di Kotoba per il corpus e' CC BY-SA 3.0 Unported: https://creativecommons.org/licenses/by-sa/3.0/ .
 Kotoba ha selezionato, deduplicato, normalizzato, filtrato, separato e riclassificato accezioni, apportando revisioni editoriali, metadati di studio ed esempi; tali adattamenti non eliminano le attribuzioni originali.
-VERIFICA DOCUMENTALE ANCORA NECESSARIA: controllare direttamente l'intestazione TEI/COPYING dello specifico pacchetto sorgente FreeDict ita-jpn 2025.11.23. I testi attualmente disponibili in questa copia non sostituiscono tale riscontro puntuale.
+VERIFICA COMPLETATA IL 23/11/2026: il pacchetto sorgente ufficiale e' https://download.freedict.org/dictionaries/ita-jpn/2025.11.23/freedict-ita-jpn-2025.11.23.src.tar.xz . SHA-256: 1aeaf5c37bc231b28bc22c89d5c285256c8bbc8b9e2a2f7f8f8ccdba5befc460 . SHA-512 convalidato contro il checksum ufficiale: 3cc606588810d87a999cdc9a435932e00d707cb1a8a9c9fdee15f775cd2bb7970452296a9a1d96fa3100875926d7fb3fdd53a24a0b45482d9aecf469c7c69dde . Nell'originale ita-jpn/ita-jpn.tei la licenza del contenuto e' effettivamente CC BY-SA 3.0 Unported, con Karl Bartel, 20.066 voci e origine WikDict / Wiktionary tramite DBnary. Controllo riproducibile: scripts/audit-freedict-source.py e job CI. Nel medesimo pacchetto esiste un file ausiliario freedict-P5.xml con avviso GPL 2.0 o successiva: e' materiale tecnico della distribuzione sorgente FreeDict, non e' un elemento che Kotoba dichiara di aver incorporato nel proprio runtime. Non riutilizzarlo senza verificarne separatamente le condizioni.
 
 3. JMDICT / EDRDG
 JMdict, Electronic Dictionary Research and Development Group (EDRDG), originariamente coordinato da James W. Breen. La licenza ufficiale e' Creative Commons Attribution-ShareAlike 4.0 International:
@@ -58,8 +58,8 @@ licenses/LICENSE-CC-BY-SA-4.0.txt
 Questi documenti costituiscono allegati storici e specifici all'avviso principale, non registri paralleli.
 
 10. VERIFICHE PRIMA DELLA DICHIARAZIONE DI CONFORMITA' PER GLI STORE
-A. Confrontare la licenza effettiva del pacchetto TEI FreeDict ita-jpn 2025.11.23 con la precedente attribuzione.
-B. Verificare per le porzioni pubblicate la differenza tra fonti consultate e redistribuite, gli esempi non P01-P03 ed eventuali materiali di Tatoeba/OMW/ItalWordNet effettivamente incorporati.
+A. COMPLETATA (23/11/2026): licenza TEI FreeDict ita-jpn 2025.11.23 verificata contro pacchetto originale con SHA-512 ufficiale; confermato CC BY-SA 3.0.
+B. PARZIALMENTE VERIFICATA: nel registro storico protetto del canonico (15.357 decisioni, 42.109 evidenze selezionate, sha256 del file attribuzioni 479e7d6915cad5aec1c55c475bf86013aa3902e872a6f82f737660b1d1558729), 22 decisioni sono marcate 'unresolved' e tutte riportano 'No new pair'; nessuna dichiara copiedCommercialExample=true. Sono risultati del registro storico, NON una certificazione dell'intero corpus pubblico di 24.538 sensi, ne' prova che tali 22 ID non siano distribuiti. Occorre completare il confronto con il runtime pubblico, verificare gli esempi non P01-P03 ed eventuali materiali Tatoeba/OMW/ItalWordNet effettivamente incorporati.
 C. Verificare in PWA E APK la presenza offline di questo avviso, del testo MIT e degli allegati; verificare certificato originale Android, ID e compatibilita' progressi.
 D. Integrare l'esito nel registro canonico e applicare realmente la procedura periodica JMdict.
 Fino alla documentata chiusura dei punti A-D, questo e' un avviso operativo consolidato, NON una certificazione completa di conformita' giuridica.
