@@ -1,5 +1,5 @@
 /* Kotoba offline-first: retain previous caches until the new package is complete. */
-const VERSION='3.1.18-jmdict-v3-licenses-20261123';
+const VERSION='3.1.19-licenses-20261123';
 const CACHE='kotoba-shell-'+VERSION;
 const ASSETS=[
   "./",
