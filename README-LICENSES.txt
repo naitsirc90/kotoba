@@ -1,5 +1,5 @@
 KOTOBA OFFLINE — FONTI, ATTRIBUZIONI E CONDIZIONI DI RIUTILIZZO
-Avviso principale, versione applicativa 3.1.18 — revisione 23 novembre 2026
+Avviso principale, candidata PWA 3.1.19 — revisione 23 novembre 2026 (nessuna modifica ai dati lessicali della 3.1.18)
 
 1. CODICE E DATI: LICENZE DISTINTE
 Il codice originale di Kotoba Offline, nella misura in cui gli autori ne detengono i diritti, e' distribuito sotto MIT (Copyright (c) 2026 naitsirc90). Testo integrale nel file LICENSE incluso anche offline.
@@ -17,7 +17,7 @@ https://www.edrdg.org/edrdg/licence.html
 https://creativecommons.org/licenses/by-sa/4.0/
 Progetto: https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project
 Il testo completo CC BY-SA 4.0 e' incluso in licenses/LICENSE-CC-BY-SA-4.0.txt .
-Kotoba utilizza selezioni e adattamenti delle grafie, letture e informazioni lessicali. L'allineamento editoriale V3 (fonte JMdict 18 novembre 2026) conserva 18 collegamenti verificati e 5 accezioni storiche senza indice sorgente corrente; gli ID e le traduzioni dell'app 3.1.18 non cambiano.
+Kotoba utilizza selezioni e adattamenti delle grafie, letture e informazioni lessicali. L'allineamento editoriale V3 (fonte JMdict 18 novembre 2026) conserva 18 collegamenti verificati e 5 accezioni storiche senza indice sorgente corrente; gli ID e le traduzioni della candidata 3.1.19 sono IDENTICI alla 3.1.18.
 JmdictFurigana, di Doublevil (https://github.com/Doublevil/JmdictFurigana), e' stato usato per confronto di scritture e letture, senza sostituire i diritti di EDRDG sulle porzioni JMdict.
 OBBLIGO CONTINUATIVO: EDRDG richiede una procedura di aggiornamento regolare dei dati effettivamente distribuiti. Il controllo read-only mensile predisposto nel repository non equivale a un aggiornamento; ogni delta pertinente va esaminato, approvato e applicato nelle release secondo docs/KOTOBA-JMDICT-MANUTENZIONE.md.
 
