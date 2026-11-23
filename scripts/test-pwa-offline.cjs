@@ -38,11 +38,11 @@ async function main(){
         setTimeout(()=>reject(Error('No service worker controller')),60000);
       });
       const keys=await caches.keys();
-      const active=keys.find(k=>k.includes('3.1.18-jmdict-v3-20261121'));
+      const active=keys.find(k=>k.includes('3.1.18-jmdict-v3-licenses-20261123'));
       if(!active)throw Error('Expected 3.1.18 cache missing');
       const cache=await caches.open(active);
       const parts=Array.from({length:8},(_,i)=>'./assets/data/vocabulary-v318.gz.part'+String(i+1).padStart(2,'0'));
-      const assets=['./','./app.js',...parts,'./licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json','./licenses/LICENSE-CC-BY-SA-4.0.txt'];
+      const assets=['./','./app.js','./LICENSE','./README-LICENSES.txt',...parts,'./licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json','./licenses/LICENSE-CC-BY-SA-4.0.txt'];
       for(const file of assets){const r=await cache.match(file);if(!r||!r.ok)throw Error('Offline asset missing '+file);}
       const voc=window.__KOTOBA_VOCABULARY__;
       if(voc.meta?.jmdictEditorialAlignmentVersion!=='2026-11-21-V3')throw Error('JMdict V3 metadata missing');
@@ -55,8 +55,9 @@ async function main(){
     await page.reload({waitUntil:'domcontentloaded',timeout:45000});
     await page.waitForFunction(()=>window.__KOTOBA_VOCABULARY__?.entries?.length===24538,null,{timeout:120000});
     const after=await page.evaluate(async()=>{
-      const r=await fetch('./licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt');
-      if(!r.ok)throw Error('Offline attribution not available');
+      for(const path of ['./README-LICENSES.txt','./LICENSE','./licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt']){
+        const r=await fetch(path); if(!r.ok||!(await r.text()).trim())throw Error('Offline legal notice not available: '+path);
+      }
       const db=await new Promise((ok,fail)=>{const req=indexedDB.open('kotoba-pwa-progress-v1',1);req.onsuccess=()=>ok(req.result);req.onerror=()=>fail(req.error)});
       const marker=await new Promise((ok,fail)=>{const req=db.transaction('kv','readonly').objectStore('kv').get('offline-test-marker');req.onsuccess=()=>ok(req.result);req.onerror=()=>fail(req.error);});
       db.close();return {senses:window.__KOTOBA_VOCABULARY__.entries.length,marker:marker?.sample};
