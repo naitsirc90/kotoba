@@ -3264,13 +3264,23 @@ function renderSettings() {
         <div class="settings-disclosure-body">
           <p class="field-help"><strong>Versione app:</strong> ${escapeHtml(KOTOBA_RELEASE.split('-')[0])}<br><strong>Dizionario:</strong> Kotoba Lexicon V4.2 · ${canonicalCount.toLocaleString('it-IT')} accezioni canoniche (${eligibleCount.toLocaleString('it-IT')} esercitabili (filtro M3)).<br><strong>Livelli:</strong> Essenziale, Base, Intermedio, Avanzato, Esperto. Dopo il primo caricamento l'app funziona offline. I progressi della PWA sono salvati principalmente in IndexedDB; su Android restano nella memoria locale del dispositivo. localStorage serve anche per la compatibilità con i dati precedenti. I livelli sono indicativi; alcune accezioni restano escluse in attesa di verifica.</p>
           <details class="kotoba-credits"><summary>Fonti e licenze del dizionario</summary>
-      <p><strong>JMdict / EDRDG:</strong> grafie, letture e accezioni. © EDRDG e James W. Breen, CC BY-SA 4.0; dati selezionati e rielaborati per il progetto Kotoba Offline. Licenza: https://www.edrdg.org/edrdg/licence.html</p>
-      <p><strong>FreeDict + WikDict italiano–giapponese:</strong> edizione 2025.11.23, curata da Karl Bartel; dati derivati da Wiktionary/DBnary, CC BY-SA 3.0. https://freedict.org/ · https://creativecommons.org/licenses/by-sa/3.0/</p>
-      <p><strong>Wiktionary giapponese e italiano:</strong> consultazione semantica e verifiche editoriali; testi del dizionario non riprodotti letteralmente nelle nuove schede. CC BY-SA 4.0. https://it.wiktionary.org/ · https://ja.wiktionary.org/</p>
-      <p><strong>Japanese WordNet / NICT:</strong> © 2009–2010 NICT, secondo la licenza originale. <strong>WordNet italiano / MultiWordNet:</strong> Pianta, Bentivogli e Girardi, 2002, CC BY 3.0. Le condizioni complete sono conservate nei file di licenza dell'app.</p>
-      <p><strong>Dati didattici JLPT:</strong> Jonathan Waller e progetto yomitan-jlpt-vocab, CC BY 4.0 / CC BY-SA 4.0; i livelli sono indicativi e non ufficiali. <strong>Esempi P01–P03:</strong> frasi didattiche redatte per Kotoba Offline, senza riproduzione di definizioni protette.</p>
-      <p><strong>Frequenze per le stime di livello:</strong> University of Leeds Corpus, elaborazione di hingston, CC BY 2.5; dati mediati da jkindrix/japanese-language-data, FrequencyWords e OpenSubtitles, CC BY-SA 4.0. I livelli sono stime orientative, non elenchi JLPT ufficiali.</p>
-      <p><strong>JMdict 18 novembre 2026:</strong> allineamento editoriale V3: 18 collegamenti alla fonte verificati, 5 accezioni storiche preservate senza indice corrente, nessuna riattivazione delle parole escluse. I dati degli esercizi e le traduzioni preesistenti non sono stati modificati.</p><p><strong>Attribuzioni offline:</strong> <a href='./licenses/LEXICAL_SOURCES_2.7.6.txt'>fonti lessicali</a> · <a href='./licenses/JAPANESE_WORDNET_NICT_LICENSE.txt'>Japanese WordNet / NICT</a> · <a href='./licenses/MULTIWORDNET_IT_CC_BY_3.0.txt'>MultiWordNet</a> · <a href='./licenses/JLPT_DATA.txt'>dati JLPT</a> · <a href='./licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt'>fonti dei livelli</a>.</p><p>Le licenze delle risorse esterne sono distinte dalla licenza del codice e rimangono applicabili. La consultazione di una fonte non implica che il suo testo sia stato incorporato.</p>
+      <p><strong>Crediti e condizioni di riutilizzo:</strong> <a href='./README-LICENSES.txt'>avviso principale (offline)</a>. <strong>Codice originale:</strong> <a href='./LICENSE'>licenza MIT completa (offline)</a>.</p>
+      <p><strong>Fonti lessicali:</strong> FreeDict/WikDict ita-jpn (Karl Bartel), JMdict/EDRDG (James W. Breen), Wiktionary/DBnary, Japanese WordNet/NICT e MultiWordNet italiano. <strong>Fonti didattiche:</strong> Jonathan Waller, yomitan-jlpt-vocab, University of Leeds Corpus, FrequencyWords, OpenSubtitles e jkindrix.</p>
+      <p>Le fonti sono state selezionate e adattate; i dati e il codice hanno licenze distinte, con condizioni Attribution/ShareAlike per i materiali pertinenti. I livelli JLPT sono soltanto indicativi. Le attribuzioni non implicano approvazione da parte delle fonti. I dettagli su licenze, modifiche, limiti documentali e aggiornamento JMdict sono nell'avviso principale.</p>
+      <details class="kotoba-license-documents"><summary>Documenti di dettaglio (offline)</summary><ul>
+      <li><a href='./licenses/LEXICAL_SOURCES_2.7.6.txt'>Fonti lessicali e note di provenienza</a></li>
+      <li><a href='./licenses/JAPANESE_WORDNET_NICT_LICENSE.txt'>Licenza Japanese WordNet / NICT</a></li>
+      <li><a href='./licenses/MULTIWORDNET_IT_CC_BY_3.0.txt'>MultiWordNet e citazione</a></li>
+      <li><a href='./licenses/JLPT_DATA.txt'>Dati JLPT</a></li>
+      <li><a href='./licenses/KOTOBA_3_1_6_SOURCES_AND_ATTRIBUTIONS.txt'>Fonti 3.1.6</a></li>
+      <li><a href='./licenses/KOTOBA_3_1_7_PRIORITY_SOURCE_NOTE.txt'>Priorità 3.1.7</a></li>
+      <li><a href='./licenses/KOTOBA_3_1_8_EXPERIENCE_NOTICE.txt'>Esperienza 3.1.8</a></li>
+      <li><a href='./licenses/KOTOBA_3_1_9_PORTABILITY.txt'>Trasferimento 3.1.9</a></li>
+      <li><a href='./licenses/KOTOBA_3_1_17_M2_PROVA_SOURCES.txt'>Fonti M2 3.1.17</a></li>
+      <li><a href='./licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json'>Riferimenti Wiktionary</a></li>
+      <li><a href='./licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt'>Livelli e frequenze</a></li>
+      <li><a href='./licenses/LICENSE-CC-BY-SA-4.0.txt'>Testo CC BY-SA 4.0</a></li>
+      </ul></details>
       </details>
           <button class="btn danger-outline" data-action="open-reset">Resetta progressi</button>
         </div>
