@@ -29,7 +29,7 @@ jobs:
           node --check app.js
           node --check scripts/check-pwa-preflight.cjs
           node --check scripts/test-pwa-offline.cjs
-      - name: Verify complete 3.1.18 corpus, licenses and M3 safety
+      - name: Verify complete 3.1.19 corpus, licenses and M3 safety
         run: node scripts/check-pwa-preflight.cjs
       - name: Inventory published provenance fields (aggregate only)
         run: python scripts/audit-runtime-provenance.py
@@ -54,18 +54,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Verify GitHub Pages deployment of Kotoba 3.1.18
+      - name: Verify GitHub Pages deployment of Kotoba 3.1.19
         shell: bash
         run: |
           set -euo pipefail
           base='https://naitsirc90.github.io/kotoba'
           ready=0
           for attempt in {1..18}; do
-            if curl -fLsS --connect-timeout 10 --max-time 25 "$base/sw.js?verify=$GITHUB_SHA" | grep -q '3.1.18-jmdict-v3-licenses-20261123'; then ready=1; break; fi
+            if curl -fLsS --connect-timeout 10 --max-time 25 "$base/sw.js?verify=$GITHUB_SHA" | grep -q '3.1.19-licenses-20261123'; then ready=1; break; fi
             echo "Waiting for GitHub Pages deployment, attempt $attempt"
             sleep 10
           done
-          if [ "$ready" -ne 1 ]; then echo "Published service worker is not Kotoba 3.1.18"; exit 1; fi
+          if [ "$ready" -ne 1 ]; then echo "Published service worker is not Kotoba 3.1.19"; exit 1; fi
           for file in index.html app.js bootstrap.js LICENSE README-LICENSES.txt \
             assets/data/vocabulary-v318.gz.part01 \
             assets/data/vocabulary-v318.gz.part02 \
@@ -84,7 +84,7 @@ jobs:
             test "$code" = 200 || { echo "$file HTTP $code"; exit 1; }
             echo "PASS HTTP 200 $file"
           done
-          echo 'PASS GitHub Pages Kotoba 3.1.18'
+          echo 'PASS GitHub Pages Kotoba 3.1.19'
 
   review-package:
     name: PWA licensing-review ZIP (temporary)
@@ -106,7 +106,7 @@ jobs:
           for p in paths:
               f=root/p
               assert f.is_file() and f.stat().st_size>0, f'Absent asset: {p}'
-          filename='Kotoba-PWA-3.1.18-CREDITS-REVIEW.zip'
+          filename='Kotoba-PWA-3.1.19-CREDITS-REVIEW.zip'
           with zipfile.ZipFile(filename,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as out:
               for p in paths:
                   out.write(root/p,arcname=p)
@@ -118,8 +118,8 @@ jobs:
       - name: Publish short-lived review artifact (not a public store release)
         uses: actions/upload-artifact@v4
         with:
-          name: kotoba-pwa-3.1.18-credits-review
-          path: Kotoba-PWA-3.1.18-CREDITS-REVIEW.zip
+          name: kotoba-pwa-3.1.19-credits-review
+          path: Kotoba-PWA-3.1.19-CREDITS-REVIEW.zip
           retention-days: 3
 
   freedict-source-license:
