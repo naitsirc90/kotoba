@@ -31,6 +31,8 @@ jobs:
           node --check scripts/test-pwa-offline.cjs
       - name: Verify complete 3.1.18 corpus, licenses and M3 safety
         run: node scripts/check-pwa-preflight.cjs
+      - name: Inventory published provenance fields (aggregate only)
+        run: python scripts/audit-runtime-provenance.py
 
   browser-offline:
     runs-on: ubuntu-latest
