@@ -7,11 +7,13 @@
 Kotoba è una **Progressive Web App (PWA)**: può essere utilizzata dal browser e aggiunta alla schermata Home di smartphone e tablet. Dopo il primo caricamento completo, i contenuti dell'app possono essere utilizzati anche offline.
 
 
-## Aggiornamento 3.1.18 — JMdict V3
+## Candidata 3.1.19 — licenze e manutenzione (non pubblicata)
 
-La PWA 3.1.18 usa lo stesso corpus verificato della versione Android 3.1.18: 24.538 accezioni, 18 corrispondenze editoriali con JMdict e 5 accezioni storiche conservate senza indice sorgente attuale. La pubblicazione non modifica gli identificativi, le traduzioni, i livelli di studio, le esclusioni M3 né il formato dei progressi.
+La PWA 3.1.19 mantiene **esattamente lo stesso corpus verificato della versione Android 3.1.18**, senza modifica a dati, ID, esercizi o progressi. Integra l'avviso unico, i riferimenti offline e controlli di provenienza; **la distribuzione su store resta bloccata** fino alla revisione delle 793 schede C-M2 con m2LicenseGate non autorizzato, delle 3 schede unresolved abilitate e delle frasi d'esempio non pienamente accertate. Il confronto mensile JMdict apre una richiesta di revisione dei delta ma non modifica automaticamente il canonico.
 
-Per ridurre il trasferimento iniziale, il dizionario è conservato in otto parti compresse `assets/data/vocabulary-v318.gz.part01`–`part08`. `bootstrap.js` le ricompone e decomprime localmente tramite `DecompressionStream`; il service worker le conserva insieme ai file dell'app per l'utilizzo offline. La prima apertura richiede connessione e un browser moderno. La precedente copia lessicale non è più usata dalla PWA 3.1.18 ed è temporaneamente mantenuta per compatibilità durante la transizione.
+Il corpus stabile contiene: 24.538 accezioni, 18 corrispondenze editoriali con JMdict e 5 accezioni storiche conservate senza indice sorgente attuale. La pubblicazione non modifica gli identificativi, le traduzioni, i livelli di studio, le esclusioni M3 né il formato dei progressi.
+
+Per ridurre il trasferimento iniziale, il dizionario è conservato in otto parti compresse `assets/data/vocabulary-v318.gz.part01`–`part08`. `bootstrap.js` le ricompone e decomprime localmente tramite `DecompressionStream`; il service worker le conserva insieme ai file dell'app per l'utilizzo offline. La prima apertura richiede connessione e un browser moderno. La precedente copia lessicale non è più usata dalla PWA 3.1.19 ed è temporaneamente mantenuta per compatibilità durante la transizione.
 
 ## Funzionalità
 
