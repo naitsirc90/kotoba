@@ -8,6 +8,8 @@ import argparse, collections, datetime, gzip, hashlib, json, pathlib, re, urllib
 URL="https://ftp.edrdg.org/pub/Nihongo/JMdict_e.gz"
 # Pinned historical source from existing repository notice, NOT a current update certificate.
 REFERENCE_SHA="7c235a7c6a2439c7c80d0a272d22d687ecac3451d24e49fe08f62fe778dc1ea4"
+# XML snapshot used for the last applied source mapping; gzip bytes can change on repack.
+APPLIED_XML_SHA="02c51639a138cfd874683b368f651d2d5a4108bf0054712c63913f3b25eef2a0"
 ENTRY=re.compile(rb"<entry>.*?</entry>",re.S)
 SEQ=re.compile(rb"<ent_seq>\s*(\d+)\s*</ent_seq>")
 KOTOBA_ID=re.compile(r"^jmdict-(\d+)-(\d+)$")
@@ -24,7 +26,7 @@ def inventory(gz_blob):
         normalized=re.sub(rb">\s+<",b"><",e)
         indexed[uid]=digest(normalized)
     if len(indexed)<100000:raise RuntimeError("JMdict entries unexpectedly few: %s" % len(indexed))
-    return indexed, raw[:2048]
+    return indexed, raw[:2048], digest(raw)
 def fetch():
     req=urllib.request.Request(URL,headers={"User-Agent":"Kotoba/1.0 (JMdict monthly integrity preflight)"})
     with urllib.request.urlopen(req,timeout=90) as resp:
@@ -39,19 +41,23 @@ def main():
     args=parser.parse_args()
     new_bytes=pathlib.Path(args.current_gz).read_bytes() if args.current_gz else fetch()
     new_sha=digest(new_bytes)
-    new,head=inventory(new_bytes)
+    new,head,current_xml_sha=inventory(new_bytes)
     report={"check_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
        "official_source":URL,"official_download_bytes":len(new_bytes),
-       "official_sha256":new_sha,"historical_reference_sha256":REFERENCE_SHA,
+       "official_sha256":new_sha,"official_xml_sha256":current_xml_sha,
+       "deployed_reference_xml_sha256":APPLIED_XML_SHA,
+       "upstream_xml_differs_from_deployed":current_xml_sha!=APPLIED_XML_SHA,
+       "update_required":current_xml_sha!=APPLIED_XML_SHA,
+       "historical_reference_gzip_sha256":REFERENCE_SHA,
        "upstream_sha_differs_from_historical_reference":new_sha!=REFERENCE_SHA,
        "new_jmdict_entry_count":len(new),"first_header_bytes":head[:200].decode("utf-8","replace"),
        "applied_to_kotoba":False}
     if args.previous_gz:
         old_bytes=pathlib.Path(args.previous_gz).read_bytes()
-        old,_=inventory(old_bytes)
+        old,_,old_xml_sha=inventory(old_bytes)
         before=set(old);after=set(new)
         modified=[uid for uid in before&after if old[uid]!=new[uid]]
-        report["delta"]={"previous_sha256":digest(old_bytes),
+        report["delta"]={"previous_sha256":digest(old_bytes),"previous_xml_sha256":old_xml_sha,
            "previous_entry_count":len(old),"unchanged":len(before&after)-len(modified),
            "modified":len(modified),"added":len(after-before),"removed":len(before-after),
            "matching_method":"ent_seq + whitespace-normalized entry XML",
@@ -72,6 +78,6 @@ def main():
            "unique_jmdict_ent_seq":len(matches),"ent_seq_not_in_current_jmdict":src["source_entries_missing"],
            "NOTE":"Reference-only coverage: cannot certify translation equality or apply updated senses."}
     print(json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True))
-    if args.fail_on_upstream_change and new_sha!=REFERENCE_SHA:
-        raise SystemExit("JMdict changed: canonical differential update required before release")
+    if args.fail_on_upstream_change and current_xml_sha!=APPLIED_XML_SHA:
+        raise SystemExit("JMdict XML changed since applied source: canonical differential update required before release")
 if __name__=="__main__":main()
