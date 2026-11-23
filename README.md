@@ -75,7 +75,7 @@ Il **codice originale** di Kotoba, nella misura in cui i relativi titolari possi
 
 **I dati lessicali non sono automaticamente sotto licenza MIT.** Il dizionario e alcuni metadati derivano da risorse di terzi, tra cui FreeDict, JMdict/EDRDG e altre fonti con licenze proprie. La distribuzione e il riutilizzo dei dati devono rispettare le relative condizioni, comprese attribuzione e condivisione delle elaborazioni ove previste.
 
-Per i dettagli consulta [`README-LICENSES.txt`](README-LICENSES.txt) e la cartella [`licenses/`](licenses/). Le informazioni sulle fonti sono disponibili anche nell'app.
+Il **documento principale di attribuzione e riutilizzo** è [`README-LICENSES.txt`](README-LICENSES.txt), disponibile anche offline insieme alla licenza MIT completa (`LICENSE`) e ai documenti di dettaglio in [`licenses/`](licenses/). La schermata **Impostazioni → Informazioni e dati → Fonti e licenze del dizionario** collega tutti questi materiali. La verifica dei diritti delle singole porzioni del corpus e degli obblighi di aggiornamento deve essere conclusa prima di dichiarare completa la conformità per gli store.
 
 Kotoba è un progetto indipendente, non affiliato agli enti organizzatori del JLPT. Le attribuzioni ai progetti lessicali non implicano che questi approvino o sponsorizzino Kotoba.
 
