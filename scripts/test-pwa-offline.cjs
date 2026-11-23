@@ -1,4 +1,4 @@
-// Browser smoke test: 3.1.18 first install, full offline reload and IndexedDB continuity.
+// Browser smoke test: 3.1.19 first install, full offline reload and IndexedDB continuity.
 const {chromium}=require('playwright');
 const http=require('node:http');
 const fs=require('node:fs');
@@ -38,8 +38,8 @@ async function main(){
         setTimeout(()=>reject(Error('No service worker controller')),60000);
       });
       const keys=await caches.keys();
-      const active=keys.find(k=>k.includes('3.1.18-jmdict-v3-licenses-20261123'));
-      if(!active)throw Error('Expected 3.1.18 cache missing');
+      const active=keys.find(k=>k.includes('3.1.19-licenses-20261123'));
+      if(!active)throw Error('Expected 3.1.19 cache missing');
       const cache=await caches.open(active);
       const parts=Array.from({length:8},(_,i)=>'./assets/data/vocabulary-v318.gz.part'+String(i+1).padStart(2,'0'));
       const assets=['./','./app.js','./LICENSE','./README-LICENSES.txt',...parts,'./licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json','./licenses/LICENSE-CC-BY-SA-4.0.txt'];
@@ -64,7 +64,7 @@ async function main(){
     });
     assert.equal(after.senses,before.senses);
     assert.equal(after.marker,42,'IndexedDB progress did not survive offline reload');
-    console.log('PASS Kotoba 3.1.18 offline/IndexedDB E2E',JSON.stringify({firstInstall:before,offline:after}));
+    console.log('PASS Kotoba 3.1.19 offline/IndexedDB E2E',JSON.stringify({firstInstall:before,offline:after}));
     await context.close();
   }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 }
