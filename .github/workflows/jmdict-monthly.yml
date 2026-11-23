@@ -60,7 +60,7 @@ jobs:
           echo "Retrieved JMdict source: $SOURCE"
           echo 'Updated source requires canonical editorial application and release QA.'
       - name: Keep ONE actionable issue while the source delta is pending
-        if: env.NEEDS_CANONICAL_UPDATE == 'true' && github.ref == 'refs/heads/main' && env.SOURCE == 'EDRDG_OFFICIAL_FTP'
+        if: env.NEEDS_CANONICAL_UPDATE == 'true' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -74,6 +74,8 @@ jobs:
             echo
             echo "Ultimo controllo: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "Fonte acquisita: $SOURCE"
+            echo 'ATTENZIONE: se SOURCE=JITENDEX_EDRDG_RECONSTRUCTION, la fonte e uno specchio ricostruito: verificarne la data delle patch prima di chiamarlo aggiornamento corrente.'
+            echo 'Le differenze segnalate indicano delta da revisionare, non autorizzano aggiornamenti automatici di Kotoba.'
             echo "SHA-256 XML ufficiale: $SOURCE_XML_SHA"
             echo "SHA-256 XML applicato alla release corrente: 02c51639a138cfd874683b368f651d2d5a4108bf0054712c63913f3b25eef2a0"
             echo
