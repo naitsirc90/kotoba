@@ -102,10 +102,11 @@ jobs:
           marker='const ASSETS='
           assert marker in sw, 'Precache list missing'
           assets,_=json.JSONDecoder().raw_decode(sw.split(marker,1)[1].lstrip())
-          paths=sorted({p.removeprefix('./') for p in assets if p != './'} | {'README.md'})
+          paths=sorted({p.removeprefix('./') for p in assets if p != './'} | {'README.md','sw.js'})
           for p in paths:
               f=root/p
               assert f.is_file() and f.stat().st_size>0, f'Absent asset: {p}'
+          assert {'sw.js','index.html','app.js','bootstrap.js','LICENSE','README-LICENSES.txt'}.issubset(set(paths)), 'Missing essential PWA files'
           filename='Kotoba-PWA-3.1.19-CREDITS-REVIEW.zip'
           with zipfile.ZipFile(filename,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as out:
               for p in paths:
