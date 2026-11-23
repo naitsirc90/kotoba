@@ -8,16 +8,23 @@ Aggiornato: 19 novembre 2026 · Applicabilità: versione canonica Drive con SHA-
 - Comando di ricostruzione di riserva: `scripts/reconstruct-jmdict-mirror.sh`
 - Controllo di integrità: `scripts/check-jmdict-current.py`
 - Pianificazione: giorno **1** di ogni mese, ore **06:10 UTC**. GitHub Actions può ritardare le attività pianificate.
-- Il workflow usa solo le autorizzazioni GitHub `contents: read`, nessuna password o chiave Android.
+- Il workflow usa solo le autorizzazioni GitHub `contents: read` e `issues: write` per mantenere **una sola issue** di revisione quando la fonte ufficiale presenta delta non ancora applicati; non accede a password o alla chiave Android.
+- Il confronto avviene sullo **SHA-256 del contenuto XML decompresso** contro lo SHA della sorgente effettivamente applicata, non sul solo hash del GZIP, che può variare per ricompressione.
 
 ### Come si esegue
-1. Aprire **Actions → JMdict monthly upstream check (read-only) → Run workflow** dal branch `main`, oppure leggere l'esecuzione pianificata.
+1. Aprire **Actions → JMdict monthly source and editorial update gate → Run workflow** dal branch `main`, oppure leggere l'esecuzione pianificata.
 2. Se raggiungibile, il workflow scarica `JMdict_e.gz` da `https://ftp.edrdg.org/pub/Nihongo/JMdict_e.gz`.
 3. Se il download non riesce, ricostruisce JMdict **legacy** usando la base e tutte le patch giornaliere, in ordine, da `https://github.com/Jitendex/edrdg-dictionary-archive`. Il GZIP così ottenuto può avere hash binario diverso dall'originale pur contenendo lo stesso XML; perciò registrare **SHA-256 XML**, data e commit dell'archivio.
-4. Il controllo verifica GZIP, unicità degli `ent_seq`, hash, conteggi e copertura del corpus pubblico. **Il workflow non modifica Kotoba, non aggiorna la release, non certifica gli obblighi di licenza.**
+4. Il controllo verifica GZIP, unicità degli `ent_seq`, SHA XML, conteggi e copertura del corpus pubblico. Se la fonte ufficiale EDRDG risulta diversa dalla versione applicata, **apre o aggiorna un'unica issue operativa**. In caso di specchio di riserva non presenta automaticamente come nuova una fonte di freschezza non accertata. **Il workflow non modifica Kotoba, non aggiorna la release e non certifica gli obblighi di licenza finché il delta non viene applicato e distribuito.**
 5. Per un aggiornamento effettivo del canonico aprire il notebook in **Google Drive personale** `KOTOBA-COLAB-MANUTENZIONE-CORRENTE.ipynb`, ID `1wR2ZpeAuhy8f-bfXuBcQvBfkI9VyxKWU`. Utilizzare soltanto il Drive personale, mai quello comunale/aziendale.
 6. Rileggere i sei segmenti correnti secondo `KOTOBA-CANONICO-CORRENTE-PARTI.json`, confermare ogni SHA-256, SHA complessivo, CRC ZIP, `PRAGMA integrity_check`, `PRAGMA foreign_key_check`, poi elaborare il **delta ent_seq**. Nessun aggiornamento automatizzato dei significati italiani.
 7. Prima della distribuzione: verificare i dati/ID M2-M3 e i blocchi OP5C, contare i sensi idonei allo studio, eseguire QA PWA/Android, aggiornare note/attribuzioni e registrare fonte effettivamente applicata. L'APK va firmato esclusivamente con certificato originale. Non promuovere a release una semplice modifica del controllo sorgenti.
+
+### Monitoraggio e chiusura dell'obbligo di aggiornamento
+- Il controllo del giorno 1 **non basta**: l'issue contiene una procedura per confrontare, revisionare, applicare e distribuire i delta JMdict pertinenti. Le traduzioni non vengono sovrascritte automaticamente.
+- A ciascun rilascio aggiornato, registrare nel **medesimo registro canonico** SHA XML ufficiale, data del controllo, numeri di delta, decisioni editoriali, data e versione realmente distribuita su PWA e APK. Solo dopo aggiornare `APPLIED_XML_SHA` in `scripts/check-jmdict-current.py` e chiudere l'issue.
+- Se non vi sono delta, registrare il controllo senza ripubblicare una versione inutile. Non moltiplicare report e backup; non caricare sul GitHub pubblico dati di verifica editoriali privati.
+- Quando il canonico di Google Drive personale non è accessibile, **non inventare una promozione**: mantenere l'issue aperta e il gate licenze non superato.
 
 ## 2. Stato di riferimento JMdict e 92 eccezioni
 - Fonte del 18/11/2026: legacy JMdict_e ricostruito da Jitendex/EDRDG, **XML SHA-256** `02c51639a138cfd874683b368f651d2d5a4108bf0054712c63913f3b25eef2a0`.
