@@ -83,3 +83,39 @@ jobs:
             echo "PASS HTTP 200 $file"
           done
           echo 'PASS GitHub Pages Kotoba 3.1.18'
+
+  review-package:
+    name: PWA licensing-review ZIP (temporary)
+    needs: [preflight, browser-offline]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble exactly the tested offline assets and license notices
+        run: |
+          python - <<'PY'
+          import json, pathlib, re, zipfile
+          root=pathlib.Path('.')
+          sw=(root/'sw.js').read_text(encoding='utf-8')
+          m=re.search(r'const ASSETS=\\s*(\\[[\\s\\S]*?\\]);',sw)
+          assert m, 'Precache list missing'
+          assets=json.loads(m.group(1))
+          paths=sorted({p.removeprefix('./') for p in assets if p != './'} | {'README.md'})
+          for p in paths:
+              f=root/p
+              assert f.is_file() and f.stat().st_size>0, f'Absent asset: {p}'
+          filename='Kotoba-PWA-3.1.18-CREDITS-REVIEW.zip'
+          with zipfile.ZipFile(filename,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as out:
+              for p in paths:
+                  out.write(root/p,arcname=p)
+          with zipfile.ZipFile(filename) as verify:
+              assert verify.testzip() is None
+              assert set(verify.namelist())==set(paths)
+          print('PASS review ZIP:',filename,len(paths),'files')
+          PY
+      - name: Publish short-lived review artifact (not a public store release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotoba-pwa-3.1.18-credits-review
+          path: Kotoba-PWA-3.1.18-CREDITS-REVIEW.zip
+          retention-days: 3
