@@ -119,3 +119,18 @@ jobs:
           name: kotoba-pwa-3.1.18-credits-review
           path: Kotoba-PWA-3.1.18-CREDITS-REVIEW.zip
           retention-days: 3
+
+  freedict-source-license:
+    name: Verify exact FreeDict ita-jpn source license and SHA512
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Confirm source package metadata without modifying corpus
+        run: |
+          python -m py_compile scripts/audit-freedict-source.py
+          python scripts/audit-freedict-source.py
