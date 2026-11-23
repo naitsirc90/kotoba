@@ -97,9 +97,9 @@ jobs:
           import json, pathlib, re, zipfile
           root=pathlib.Path('.')
           sw=(root/'sw.js').read_text(encoding='utf-8')
-          m=re.search(r'const ASSETS=\\s*(\\[[\\s\\S]*?\\]);',sw)
-          assert m, 'Precache list missing'
-          assets=json.loads(m.group(1))
+          marker='const ASSETS='
+          assert marker in sw, 'Precache list missing'
+          assets,_=json.JSONDecoder().raw_decode(sw.split(marker,1)[1].lstrip())
           paths=sorted({p.removeprefix('./') for p in assets if p != './'} | {'README.md'})
           for p in paths:
               f=root/p
