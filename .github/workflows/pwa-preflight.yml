@@ -59,12 +59,12 @@ jobs:
           base='https://naitsirc90.github.io/kotoba'
           ready=0
           for attempt in {1..18}; do
-            if curl -fLsS --connect-timeout 10 --max-time 25 "$base/sw.js?verify=$GITHUB_SHA" | grep -q '3.1.18-jmdict-v3-20261121'; then ready=1; break; fi
+            if curl -fLsS --connect-timeout 10 --max-time 25 "$base/sw.js?verify=$GITHUB_SHA" | grep -q '3.1.18-jmdict-v3-licenses-20261123'; then ready=1; break; fi
             echo "Waiting for GitHub Pages deployment, attempt $attempt"
             sleep 10
           done
           if [ "$ready" -ne 1 ]; then echo "Published service worker is not Kotoba 3.1.18"; exit 1; fi
-          for file in index.html app.js bootstrap.js \
+          for file in index.html app.js bootstrap.js LICENSE README-LICENSES.txt \
             assets/data/vocabulary-v318.gz.part01 \
             assets/data/vocabulary-v318.gz.part02 \
             assets/data/vocabulary-v318.gz.part03 \
