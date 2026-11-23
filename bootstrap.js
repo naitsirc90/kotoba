@@ -47,15 +47,15 @@
       './assets/data/vocabulary-v318.gz.part'+String(i+1).padStart(2,'0'));
     const loadVocabulary=async()=>{
       if(typeof DecompressionStream!=='function')
-        throw new Error('Per la versione 3.1.18 è necessario aggiornare il browser (supporto decompressione offline).');
+        throw new Error('Per la versione 3.1.19 è necessario aggiornare il browser (supporto decompressione offline).');
       const responses=await Promise.all(vocabularyParts.map(p=>fetch(p,{cache:'default'})));
-      if(responses.some(r=>!r.ok))throw new Error('Dizionario 3.1.18 incompleto: apri una volta Kotoba online per completare l’installazione.');
+      if(responses.some(r=>!r.ok))throw new Error('Dizionario 3.1.19 incompleto: apri una volta Kotoba online per completare l’installazione.');
       const buffers=await Promise.all(responses.map(r=>r.arrayBuffer()));
       const stream=new Blob(buffers,{type:'application/gzip'}).stream().pipeThrough(new DecompressionStream('gzip'));
       const corpus=await new Response(stream).json();
       if(!Array.isArray(corpus.entries) || corpus.entries.length!==24538 ||
          corpus.meta?.jmdictEditorialAlignmentVersion!=='2026-11-21-V3')
-        throw new Error('Il dizionario 3.1.18 non supera i controlli di versione e integrità.');
+        throw new Error('Il dizionario 3.1.19 non supera i controlli di versione e integrità.');
       return corpus;
     };
     const otherPaths=['./assets/data/learning-priority.json','./assets/data/legacy-compat.json','./assets/data/operational-eligibility.json'];
