@@ -1,10 +1,10 @@
-// Browser smoke test: 3.1.18 first install, full offline reload and IndexedDB continuity.
+// Browser smoke test: 3.1.19 first install, full offline reload and IndexedDB continuity.
 const {chromium}=require('playwright');
 const http=require('node:http');
 const fs=require('node:fs');
 const path=require('node:path');
 const assert=require('node:assert/strict');
-const root=path.resolve(__dirname,'..');
+const root=path.resolve(__dirname,'..'),examplesMode=process.argv.includes('--examples');
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css','.json':'application/json','.webmanifest':'application/manifest+json','.txt':'text/plain; charset=utf-8','.png':'image/png'};
 const server=http.createServer((req,res)=>{
   const url=new URL(req.url,'http://127.0.0.1');
@@ -29,7 +29,7 @@ async function main(){
     const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
     assert.equal(response.status(),200);
     await page.waitForFunction(()=>window.__KOTOBA_VOCABULARY__?.entries?.length===24538,null,{timeout:120000});
-    const before=await page.evaluate(async()=>{
+    const before=await page.evaluate(async(examplesMode)=>{
       const ready=await Promise.race([navigator.serviceWorker.ready,new Promise((_,rej)=>setTimeout(()=>rej(Error('SW ready timeout')),120000))]);
       if(!ready.active)throw Error('No active service worker');
       await new Promise((resolve,reject)=>{
@@ -38,32 +38,37 @@ async function main(){
         setTimeout(()=>reject(Error('No service worker controller')),60000);
       });
       const keys=await caches.keys();
-      const active=keys.find(k=>k.includes('3.1.18-jmdict-v3-20261121'));
-      if(!active)throw Error('Expected 3.1.18 cache missing');
+      const active=keys.find(k=>k.includes('3.1.19-licenses-20261124-m3'));
+      if(!active)throw Error('Expected 3.1.19 cache missing');
       const cache=await caches.open(active);
       const parts=Array.from({length:8},(_,i)=>'./assets/data/vocabulary-v318.gz.part'+String(i+1).padStart(2,'0'));
-      const assets=['./','./app.js',...parts,'./licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json','./licenses/LICENSE-CC-BY-SA-4.0.txt'];
+      const assets=['./','./app.js','./LICENSE','./README-LICENSES.txt',...parts,'./licenses/KOTOBA_3_1_17_WIKTIONARY_REFERENCES.json','./licenses/LICENSE-CC-BY-SA-4.0.txt'];
       for(const file of assets){const r=await cache.match(file);if(!r||!r.ok)throw Error('Offline asset missing '+file);}
       const voc=window.__KOTOBA_VOCABULARY__;
       if(voc.meta?.jmdictEditorialAlignmentVersion!=='2026-11-21-V3')throw Error('JMdict V3 metadata missing');
+      const count=voc.entries.filter(e=>e.exampleAuthorshipProvenance?.schema==='KOTOBA_CM2_M3_NEW_EXAMPLE_V1'&&e.exampleJapanese&&e.exampleItalian).length;
+      if(count!==(examplesMode?793:0))throw Error('Wrong online example population: '+count);
       const db=await new Promise((ok,fail)=>{const req=indexedDB.open('kotoba-pwa-progress-v1',1);req.onsuccess=()=>ok(req.result);req.onerror=()=>fail(req.error)});
       await new Promise((ok,fail)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put({sample:42},'offline-test-marker');tx.oncomplete=ok;tx.onerror=()=>fail(tx.error);});
       db.close();
-      return {assets:assets.length,senses:voc.entries.length,cache:active};
-    });
+      return {assets:assets.length,senses:voc.entries.length,cache:active,cm2Examples:count};
+    },examplesMode);
     await context.setOffline(true);
     await page.reload({waitUntil:'domcontentloaded',timeout:45000});
     await page.waitForFunction(()=>window.__KOTOBA_VOCABULARY__?.entries?.length===24538,null,{timeout:120000});
     const after=await page.evaluate(async()=>{
-      const r=await fetch('./licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt');
-      if(!r.ok)throw Error('Offline attribution not available');
+      for(const path of ['./README-LICENSES.txt','./LICENSE','./licenses/KOTOBA_3_1_17_LIVELLI_ATTRIBUZIONI.txt']){
+        const r=await fetch(path); if(!r.ok||!(await r.text()).trim())throw Error('Offline legal notice not available: '+path);
+      }
       const db=await new Promise((ok,fail)=>{const req=indexedDB.open('kotoba-pwa-progress-v1',1);req.onsuccess=()=>ok(req.result);req.onerror=()=>fail(req.error)});
       const marker=await new Promise((ok,fail)=>{const req=db.transaction('kv','readonly').objectStore('kv').get('offline-test-marker');req.onsuccess=()=>ok(req.result);req.onerror=()=>fail(req.error);});
-      db.close();return {senses:window.__KOTOBA_VOCABULARY__.entries.length,marker:marker?.sample};
+      const voc=window.__KOTOBA_VOCABULARY__;
+      db.close();return {senses:voc.entries.length,marker:marker?.sample,cm2Examples:voc.entries.filter(e=>e.exampleAuthorshipProvenance?.schema==='KOTOBA_CM2_M3_NEW_EXAMPLE_V1'&&e.exampleJapanese&&e.exampleItalian).length};
     });
     assert.equal(after.senses,before.senses);
     assert.equal(after.marker,42,'IndexedDB progress did not survive offline reload');
-    console.log('PASS Kotoba 3.1.18 offline/IndexedDB E2E',JSON.stringify({firstInstall:before,offline:after}));
+    assert.equal(after.cm2Examples,examplesMode?793:0,'New examples missing after offline reload');
+    console.log('PASS Kotoba 3.1.19 offline/IndexedDB E2E',JSON.stringify({firstInstall:before,offline:after}));
     await context.close();
   }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 }

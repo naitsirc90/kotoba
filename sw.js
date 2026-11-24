@@ -1,5 +1,5 @@
 /* Kotoba offline-first: retain previous caches until the new package is complete. */
-const VERSION='3.1.18-jmdict-v3-20261121';
+const VERSION='3.1.19-licenses-20261124-m3';
 const CACHE='kotoba-shell-'+VERSION;
 const ASSETS=[
   "./",
@@ -23,6 +23,7 @@ const ASSETS=[
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./README-LICENSES.txt",
+  "./LICENSE",
   "./licenses/JAPANESE_WORDNET_NICT_LICENSE.txt",
   "./licenses/JLPT_DATA.txt",
   "./licenses/LEXICAL_SOURCES_2.7.6.txt",

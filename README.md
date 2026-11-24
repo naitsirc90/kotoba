@@ -7,11 +7,13 @@
 Kotoba è una **Progressive Web App (PWA)**: può essere utilizzata dal browser e aggiunta alla schermata Home di smartphone e tablet. Dopo il primo caricamento completo, i contenuti dell'app possono essere utilizzati anche offline.
 
 
-## Aggiornamento 3.1.18 — JMdict V3
+## Candidata 3.1.19 — licenze e manutenzione (non pubblicata)
 
-La PWA 3.1.18 usa lo stesso corpus verificato della versione Android 3.1.18: 24.538 accezioni, 18 corrispondenze editoriali con JMdict e 5 accezioni storiche conservate senza indice sorgente attuale. La pubblicazione non modifica gli identificativi, le traduzioni, i livelli di studio, le esclusioni M3 né il formato dei progressi.
+La PWA 3.1.19 mantiene **esattamente lo stesso corpus verificato della versione Android 3.1.18**, senza modifica a dati, ID, esercizi o progressi. Integra l'avviso unico, i riferimenti offline e controlli di provenienza; **la distribuzione su store resta bloccata** fino alla revisione delle 793 schede C-M2 con m2LicenseGate non autorizzato, delle 3 schede unresolved abilitate e delle frasi d'esempio non pienamente accertate. I test direzionali M3 del 24/11/2026 hanno superato il perimetro di 793/793 schede; 43 coppie contestuali sono state aggiunte alla tabella dei distrattori esclusi, con 139/139 verifiche mirate post-correzione. Il corpus rimane identico. Gli esempi storici non distribuiti non sono autorizzati al reinserimento; chiusura canonica e gate store restano aperti. Il confronto mensile JMdict apre una richiesta di revisione dei delta ma non modifica automaticamente il canonico.
 
-Per ridurre il trasferimento iniziale, il dizionario è conservato in otto parti compresse `assets/data/vocabulary-v318.gz.part01`–`part08`. `bootstrap.js` le ricompone e decomprime localmente tramite `DecompressionStream`; il service worker le conserva insieme ai file dell'app per l'utilizzo offline. La prima apertura richiede connessione e un browser moderno. La precedente copia lessicale non è più usata dalla PWA 3.1.18 ed è temporaneamente mantenuta per compatibilità durante la transizione.
+Il corpus stabile contiene: 24.538 accezioni, 18 corrispondenze editoriali con JMdict e 5 accezioni storiche conservate senza indice sorgente attuale. La pubblicazione non modifica gli identificativi, le traduzioni, i livelli di studio, le esclusioni M3 né il formato dei progressi.
+
+Per ridurre il trasferimento iniziale, il dizionario è conservato in otto parti compresse `assets/data/vocabulary-v318.gz.part01`–`part08`. `bootstrap.js` le ricompone e decomprime localmente tramite `DecompressionStream`; il service worker le conserva insieme ai file dell'app per l'utilizzo offline. La prima apertura richiede connessione e un browser moderno. La precedente copia lessicale non è più usata dalla PWA 3.1.19 ed è temporaneamente mantenuta per compatibilità durante la transizione.
 
 ## Funzionalità
 
@@ -75,7 +77,7 @@ Il **codice originale** di Kotoba, nella misura in cui i relativi titolari possi
 
 **I dati lessicali non sono automaticamente sotto licenza MIT.** Il dizionario e alcuni metadati derivano da risorse di terzi, tra cui FreeDict, JMdict/EDRDG e altre fonti con licenze proprie. La distribuzione e il riutilizzo dei dati devono rispettare le relative condizioni, comprese attribuzione e condivisione delle elaborazioni ove previste.
 
-Per i dettagli consulta [`README-LICENSES.txt`](README-LICENSES.txt) e la cartella [`licenses/`](licenses/). Le informazioni sulle fonti sono disponibili anche nell'app.
+Il **documento principale di attribuzione e riutilizzo** è [`README-LICENSES.txt`](README-LICENSES.txt), disponibile anche offline insieme alla licenza MIT completa (`LICENSE`) e ai documenti di dettaglio in [`licenses/`](licenses/). La schermata **Impostazioni → Informazioni e dati → Fonti e licenze del dizionario** collega tutti questi materiali. La verifica dei diritti delle singole porzioni del corpus e degli obblighi di aggiornamento deve essere conclusa prima di dichiarare completa la conformità per gli store.
 
 Kotoba è un progetto indipendente, non affiliato agli enti organizzatori del JLPT. Le attribuzioni ai progetti lessicali non implicano che questi approvino o sponsorizzino Kotoba.
 

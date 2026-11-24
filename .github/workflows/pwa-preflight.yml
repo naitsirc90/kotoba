@@ -29,8 +29,18 @@ jobs:
           node --check app.js
           node --check scripts/check-pwa-preflight.cjs
           node --check scripts/test-pwa-offline.cjs
-      - name: Verify complete 3.1.18 corpus, licenses and M3 safety
+      - name: Verify complete 3.1.19 corpus, licenses and M3 safety
         run: node scripts/check-pwa-preflight.cjs
+      - name: Inventory published provenance fields (aggregate only)
+        run: python scripts/audit-runtime-provenance.py
+      - name: Verify all 793 C-M2 directional quiz records and contextual exclusions
+        run: node scripts/test-m3-cm2-directional.cjs
+      - name: Build exact previously reviewed examples and check only allowed field changes
+        run: python scripts/build-cm2-m3-candidate.py
+      - name: Verify resulting candidate corpus, offline credits and all 793 M3 directions
+        run: |
+          node scripts/check-pwa-preflight.cjs --examples
+          node scripts/test-m3-cm2-directional.cjs --examples
 
   browser-offline:
     runs-on: ubuntu-latest
@@ -44,27 +54,29 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright@1.61.0
           npx playwright install --with-deps chromium
-      - name: Test offline installation and IndexedDB continuity
-        run: node scripts/test-pwa-offline.cjs
+      - name: Build exact reviewed examples in isolated checkout
+        run: python scripts/build-cm2-m3-candidate.py
+      - name: Test offline installation, 793 examples and IndexedDB continuity
+        run: node scripts/test-pwa-offline.cjs --examples
 
   public-pages:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Verify GitHub Pages deployment of Kotoba 3.1.18
+      - name: Verify GitHub Pages deployment of Kotoba 3.1.19
         shell: bash
         run: |
           set -euo pipefail
           base='https://naitsirc90.github.io/kotoba'
           ready=0
           for attempt in {1..18}; do
-            if curl -fLsS --connect-timeout 10 --max-time 25 "$base/sw.js?verify=$GITHUB_SHA" | grep -q '3.1.18-jmdict-v3-20261121'; then ready=1; break; fi
+            if curl -fLsS --connect-timeout 10 --max-time 25 "$base/sw.js?verify=$GITHUB_SHA" | grep -q '3.1.19-licenses-20261124-m3'; then ready=1; break; fi
             echo "Waiting for GitHub Pages deployment, attempt $attempt"
             sleep 10
           done
-          if [ "$ready" -ne 1 ]; then echo "Published service worker is not Kotoba 3.1.18"; exit 1; fi
-          for file in index.html app.js bootstrap.js \
+          if [ "$ready" -ne 1 ]; then echo "Published service worker is not Kotoba 3.1.19"; exit 1; fi
+          for file in index.html app.js bootstrap.js LICENSE README-LICENSES.txt \
             assets/data/vocabulary-v318.gz.part01 \
             assets/data/vocabulary-v318.gz.part02 \
             assets/data/vocabulary-v318.gz.part03 \
@@ -82,4 +94,69 @@ jobs:
             test "$code" = 200 || { echo "$file HTTP $code"; exit 1; }
             echo "PASS HTTP 200 $file"
           done
-          echo 'PASS GitHub Pages Kotoba 3.1.18'
+          echo 'PASS GitHub Pages Kotoba 3.1.19'
+
+  review-package:
+    name: PWA licensing-review ZIP (temporary)
+    needs: [preflight, browser-offline]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build exactly the same candidate from the verified baseline
+        run: python scripts/build-cm2-m3-candidate.py
+      - name: Assemble exactly the tested offline assets and license notices
+        run: |
+          python - <<'PY'
+          import json, pathlib, re, zipfile
+          root=pathlib.Path('.')
+          sw=(root/'sw.js').read_text(encoding='utf-8')
+          marker='const ASSETS='
+          assert marker in sw, 'Precache list missing'
+          assets,_=json.JSONDecoder().raw_decode(sw.split(marker,1)[1].lstrip())
+          paths=sorted({p.removeprefix('./') for p in assets if p != './'} | {'README.md','sw.js'})
+          for p in paths:
+              f=root/p
+              assert f.is_file() and f.stat().st_size>0, f'Absent asset: {p}'
+          assert {'sw.js','index.html','app.js','bootstrap.js','LICENSE','README-LICENSES.txt'}.issubset(set(paths)), 'Missing essential PWA files'
+          filename='Kotoba-PWA-3.1.19-M3-EXAMPLES-VERIFIED.zip'
+          with zipfile.ZipFile(filename,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as out:
+              for p in paths:
+                  out.write(root/p,arcname=p)
+          with zipfile.ZipFile(filename) as verify:
+              assert verify.testzip() is None
+              assert set(verify.namelist())==set(paths)
+          print('PASS review ZIP:',filename,len(paths),'files')
+          PY
+      - name: Publish short-lived review artifact (not a public store release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotoba-pwa-3.1.19-m3-examples-verified
+          path: Kotoba-PWA-3.1.19-M3-EXAMPLES-VERIFIED.zip
+          retention-days: 3
+
+  freedict-source-license:
+    name: Verify exact FreeDict ita-jpn source license and SHA512
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Confirm source package metadata without modifying corpus
+        run: |
+          python -m py_compile scripts/audit-freedict-source.py
+          python scripts/audit-freedict-source.py
+
+  store-license-gate:
+    name: STORE RELEASE BLOCKER - unresolved licensing provenance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Enforce explicit canonical C-M2 and historical rights gates
+        run: python scripts/check-store-license-gates.py
