@@ -26,12 +26,17 @@ assert.match(bootstrap,/kotoba-pwa-progress-v1/,'Progress IndexedDB schema chang
 assert.match(bootstrap,/DecompressionStream\('gzip'\)/,'Missing offline corpus decompressor');
 assert.match(app,/const KOTOBA_RELEASE = '3\.1\.19'/);
 assert.match(sw,/3\.1\.19-licenses-20261124-m3/);
+const examplesMode=process.argv.includes('--examples');
+const build=examplesMode?JSON.parse(read('.cm2-candidate-build.json')):null;
+if(examplesMode){assert.equal(build.records,793);assert.equal(build.baseline_json_sha256,'228eb559b7bdae108355268e76a973245754d031500e7011615857acc02e377a');assert.equal(build.all_non_example_fields_preserved,true);assert.match(sw,/3\.1\.19-licenses-20261124-m3-examples/);assert.match(notice,/6c\. NUOVI ESEMPI C-M2\/M3/);}
 const compressed=Buffer.concat(parts.map(p=>fs.readFileSync(path.join(root,p))));
-assert.equal(crypto.createHash('sha256').update(compressed).digest('hex'),'aad2ed2c60737fde81a1d40a22ed69a29903dee1b78520f313f38133336283a5');
+assert.equal(crypto.createHash('sha256').update(compressed).digest('hex'),examplesMode?build.candidate_gzip_sha256:'aad2ed2c60737fde81a1d40a22ed69a29903dee1b78520f313f38133336283a5');
 const content=zlib.gunzipSync(compressed);
-assert.equal(crypto.createHash('sha256').update(content).digest('hex'),'228eb559b7bdae108355268e76a973245754d031500e7011615857acc02e377a');
+assert.equal(crypto.createHash('sha256').update(content).digest('hex'),examplesMode?build.candidate_json_sha256:'228eb559b7bdae108355268e76a973245754d031500e7011615857acc02e377a');
 const corpus=JSON.parse(content.toString('utf8'));
 assert.equal(corpus.entries.length,24538);
+assert.equal(corpus.entries.filter(e=>e.exampleJapanese&&e.exampleItalian).length,examplesMode?21010:20217);
+if(examplesMode){const patch=JSON.parse(read('scripts/cm2-m3-examples-patch.json'));const by=new Map(corpus.entries.map(e=>[e.id,e]));for(const r of patch.records){const e=by.get(r.id);assert.equal(e.exampleJapanese,r.exampleJapanese,r.id);assert.equal(e.exampleItalian,r.exampleItalian,r.id);assert.deepEqual(e.exampleAuthorshipProvenance,r.exampleProvenance,r.id);}}
 assert.equal(new Set(corpus.entries.map(e=>e.id)).size,24538);
 assert.equal(corpus.meta.jmdictEditorialAlignmentVersion,'2026-11-21-V3');
 assert.equal(corpus.meta.jmdictEditorialAlignmentMapped,18);

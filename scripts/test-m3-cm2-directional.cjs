@@ -4,7 +4,9 @@
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),crypto=require('node:crypto'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p)),json=p=>JSON.parse(read(p));
 const bytes=zlib.gunzipSync(Buffer.concat(Array.from({length:8},(_,i)=>read('assets/data/vocabulary-v318.gz.part'+String(i+1).padStart(2,'0')))));
-assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),'228eb559b7bdae108355268e76a973245754d031500e7011615857acc02e377a');
+const examplesMode=process.argv.includes('--examples');
+const build=examplesMode?json('.cm2-candidate-build.json'):null;
+assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),examplesMode?build.candidate_json_sha256:'228eb559b7bdae108355268e76a973245754d031500e7011615857acc02e377a');
 const data=JSON.parse(bytes),entries=data.entries;assert.equal(entries.length,24538);
 const manifest=json('assets/data/operational-eligibility.json');
 const window={addEventListener(){},removeEventListener(){},__KOTOBA_VOCABULARY__:data,__KOTOBA_OPERATIONAL_ELIGIBILITY__:manifest,__KOTOBA_LEARNING_PRIORITY__:json('assets/data/learning-priority.json'),__KOTOBA_LEGACY_COMPAT__:json('assets/data/legacy-compat.json')};
@@ -54,5 +56,5 @@ for(const e of targets){
   }
 }
 assert.equal(JSON.stringify(q.getState()),snapshot,'Synthetic progress changed');
-assert.equal(stats.contextual,139);assert.equal(stats.inherited,1382);assert.equal(stats.srs,793);assert.equal(stats.examples_in_runtime,0);assert.equal(stats.own,2973);assert.equal(stats.other,2791);if(!quick)assert.equal(stats.mc,1586);
+assert.equal(stats.contextual,139);assert.equal(stats.inherited,1382);assert.equal(stats.srs,793);assert.equal(stats.examples_in_runtime,examplesMode?793:0);assert.equal(stats.own,2973);assert.equal(stats.other,2791);if(!quick)assert.equal(stats.mc,1586);
 console.log('PASS C-M2 directional M3 '+JSON.stringify(stats)+'; technical scope only, no example/authorship or store certification');

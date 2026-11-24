@@ -35,6 +35,12 @@ jobs:
         run: python scripts/audit-runtime-provenance.py
       - name: Verify all 793 C-M2 directional quiz records and contextual exclusions
         run: node scripts/test-m3-cm2-directional.cjs
+      - name: Build exact previously reviewed examples and check only allowed field changes
+        run: python scripts/build-cm2-m3-candidate.py
+      - name: Verify resulting candidate corpus, offline credits and all 793 M3 directions
+        run: |
+          node scripts/check-pwa-preflight.cjs --examples
+          node scripts/test-m3-cm2-directional.cjs --examples
 
   browser-offline:
     runs-on: ubuntu-latest
@@ -48,8 +54,10 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright@1.61.0
           npx playwright install --with-deps chromium
-      - name: Test offline installation and IndexedDB continuity
-        run: node scripts/test-pwa-offline.cjs
+      - name: Build exact reviewed examples in isolated checkout
+        run: python scripts/build-cm2-m3-candidate.py
+      - name: Test offline installation, 793 examples and IndexedDB continuity
+        run: node scripts/test-pwa-offline.cjs --examples
 
   public-pages:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -95,6 +103,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Build exactly the same candidate from the verified baseline
+        run: python scripts/build-cm2-m3-candidate.py
       - name: Assemble exactly the tested offline assets and license notices
         run: |
           python - <<'PY'
@@ -109,7 +119,7 @@ jobs:
               f=root/p
               assert f.is_file() and f.stat().st_size>0, f'Absent asset: {p}'
           assert {'sw.js','index.html','app.js','bootstrap.js','LICENSE','README-LICENSES.txt'}.issubset(set(paths)), 'Missing essential PWA files'
-          filename='Kotoba-PWA-3.1.19-CREDITS-REVIEW.zip'
+          filename='Kotoba-PWA-3.1.19-M3-EXAMPLES-VERIFIED.zip'
           with zipfile.ZipFile(filename,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as out:
               for p in paths:
                   out.write(root/p,arcname=p)
@@ -121,8 +131,8 @@ jobs:
       - name: Publish short-lived review artifact (not a public store release)
         uses: actions/upload-artifact@v4
         with:
-          name: kotoba-pwa-3.1.19-credits-review
-          path: Kotoba-PWA-3.1.19-CREDITS-REVIEW.zip
+          name: kotoba-pwa-3.1.19-m3-examples-verified
+          path: Kotoba-PWA-3.1.19-M3-EXAMPLES-VERIFIED.zip
           retention-days: 3
 
   freedict-source-license:
