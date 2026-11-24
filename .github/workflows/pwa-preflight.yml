@@ -61,7 +61,7 @@ jobs:
           base='https://naitsirc90.github.io/kotoba'
           ready=0
           for attempt in {1..18}; do
-            if curl -fLsS --connect-timeout 10 --max-time 25 "$base/sw.js?verify=$GITHUB_SHA" | grep -q '3.1.19-licenses-20261123'; then ready=1; break; fi
+            if curl -fLsS --connect-timeout 10 --max-time 25 "$base/sw.js?verify=$GITHUB_SHA" | grep -q '3.1.19-licenses-20261124'; then ready=1; break; fi
             echo "Waiting for GitHub Pages deployment, attempt $attempt"
             sleep 10
           done
