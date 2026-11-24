@@ -38,7 +38,7 @@ async function main(){
         setTimeout(()=>reject(Error('No service worker controller')),60000);
       });
       const keys=await caches.keys();
-      const active=keys.find(k=>k.includes('3.1.19-licenses-20261124'));
+      const active=keys.find(k=>k.includes('3.1.19-licenses-20261124-m3'));
       if(!active)throw Error('Expected 3.1.19 cache missing');
       const cache=await caches.open(active);
       const parts=Array.from({length:8},(_,i)=>'./assets/data/vocabulary-v318.gz.part'+String(i+1).padStart(2,'0'));

@@ -25,7 +25,7 @@ assert.ok(!sw.includes('skipWaiting('),'Service worker may disrupt study session
 assert.match(bootstrap,/kotoba-pwa-progress-v1/,'Progress IndexedDB schema changed');
 assert.match(bootstrap,/DecompressionStream\('gzip'\)/,'Missing offline corpus decompressor');
 assert.match(app,/const KOTOBA_RELEASE = '3\.1\.19'/);
-assert.match(sw,/3\.1\.19-licenses-20261124/);
+assert.match(sw,/3\.1\.19-licenses-20261124-m3/);
 const compressed=Buffer.concat(parts.map(p=>fs.readFileSync(path.join(root,p))));
 assert.equal(crypto.createHash('sha256').update(compressed).digest('hex'),'aad2ed2c60737fde81a1d40a22ed69a29903dee1b78520f313f38133336283a5');
 const content=zlib.gunzipSync(compressed);
